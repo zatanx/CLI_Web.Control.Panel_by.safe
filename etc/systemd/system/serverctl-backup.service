@@ -1,0 +1,12 @@
+[Unit]
+Description=serverctl full backup
+After=mariadb.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/serverctl backup create --all --yes
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+PrivateTmp=true
+ProtectHome=true

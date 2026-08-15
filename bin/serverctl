@@ -1,0 +1,124 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+CDPATH=; export CDPATH
+
+SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+REAL_SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
+if [[ "$REAL_SELF" == /opt/serverctl/bin/serverctl ]]; then
+  unset SERVERCTL_LIB_DIR SERVERCTL_ROOT SERVERCTL_TEST_MODE SERVERCTL_CONFIG_FILE SERVERCTL_ASSUME_YES
+fi
+if [[ -n "${SERVERCTL_LIB_DIR:-}" ]]; then
+  LIB_DIR="$SERVERCTL_LIB_DIR"
+elif [[ -d "$SELF_DIR/../lib" ]]; then
+  LIB_DIR="$(cd -- "$SELF_DIR/../lib" && pwd -P)"
+else
+  LIB_DIR="/opt/serverctl/lib"
+fi
+
+for library in common validators registry render website php ssl database backup security nginx system dashboard menu; do
+  # shellcheck source=/dev/null
+  source "$LIB_DIR/$library.sh"
+done
+
+on_error() {
+  local rc=$?
+  audit_event "${SERVERCTL_AUDIT_ACTION:-unknown}" "FAILED" "exit=$rc"
+  error "Command failed (exit $rc). See ${SERVERCTL_LOG_FILE}."
+  exit "$rc"
+}
+trap on_error ERR
+
+usage() {
+  cat <<'EOF'
+Usage: serverctl [--no-color] [--yes] <command> [arguments]
+
+Commands:
+  status [--watch]                    Server and service status
+  health                             Overall health check
+  website list
+  website add DOMAIN [--php VERSION] [--yes]
+  website remove DOMAIN [--yes] [--no-backup]
+  website health DOMAIN
+  website csp DOMAIN 'POLICY' [--yes]
+  php list
+  php set DOMAIN VERSION [--yes]
+  php health DOMAIN
+  ssl enable DOMAIN [--email ADDRESS] [--yes]
+  ssl status [DOMAIN]
+  ssl health DOMAIN
+  database list
+  database create NAME [--yes]
+  database remove NAME [--yes] [--no-backup]
+  database health [NAME]
+  backup create [--all|--website DOMAIN|--database NAME]
+  backup list
+  backup verify ARCHIVE
+  backup encrypt ARCHIVE
+  backup restore ARCHIVE [--yes]
+  backup delete ARCHIVE [--yes]
+  backup sync
+  logs <nginx|php|mariadb|fail2ban|firewall|system|serverctl> [--lines N] [--follow] [--search TEXT]
+  security status|scan|ports|permissions|php-scan|suid|services|updates|audit|ssh [status|harden]
+  firewall status|list|add|remove|reload
+  fail2ban status|list|ban IP|unban IP
+  update check|security|all
+  update history|health|reboot-status
+  dashboard status|snapshot|websites
+  dashboard logs TYPE [LINES] [SEARCH]
+  dashboard action ACTION [TARGET]
+  dashboard install DOMAIN [--user USER] [--password-hash HASH]
+  dashboard uninstall
+  nginx status|test|reload|restart|stop|start
+  nginx config <main|available|enabled|snippets|included>
+  nginx global show|set KEY VALUE
+  nginx website list|view DOMAIN|set DOMAIN KEY VALUE
+  nginx security|access-log|error-log
+  nginx backup|backup-list|restore NAME|history
+  help
+
+Run without a command to open the interactive menu.
+EOF
+}
+
+main() {
+  parse_global_options "$@"
+  set -- "${PARSED_ARGS[@]}"
+  load_config
+  init_runtime
+
+  if (($# == 0)); then
+    require_root
+    SERVERCTL_AUDIT_ACTION="interactive menu"
+    interactive_menu
+    return
+  fi
+
+  local command=$1
+  shift
+  SERVERCTL_AUDIT_ACTION=$(redact_command "$command" "$@")
+  audit_event "$SERVERCTL_AUDIT_ACTION" "STARTED"
+  case "$command" in
+    status) cmd_status "$@" ;;
+    health) cmd_health "$@" ;;
+    website) cmd_website "$@" ;;
+    php) cmd_php "$@" ;;
+    ssl) cmd_ssl "$@" ;;
+    database) cmd_database "$@" ;;
+    backup) cmd_backup "$@" ;;
+    logs) cmd_logs "$@" ;;
+    security) cmd_security "$@" ;;
+    firewall) cmd_firewall "$@" ;;
+    fail2ban) cmd_fail2ban "$@" ;;
+    update) cmd_update "$@" ;;
+    dashboard) cmd_dashboard "$@" ;;
+    nginx) cmd_nginx "$@" ;;
+    help|-h|--help) usage ;;
+    *) error "Unknown command: $command"; usage; return "$EXIT_INVALID_ARGUMENT" ;;
+  esac
+  audit_event "$SERVERCTL_AUDIT_ACTION" "SUCCESS"
+}
+
+main "$@"

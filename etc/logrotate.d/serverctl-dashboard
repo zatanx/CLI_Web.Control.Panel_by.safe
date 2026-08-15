@@ -1,0 +1,10 @@
+/var/lib/serverctl/dashboard/audit.log {
+    daily
+    rotate 30
+    missingok
+    notifempty
+    compress
+    delaycompress
+    create 0640 www-data www-data
+    su www-data www-data
+}

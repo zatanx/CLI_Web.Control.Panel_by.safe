@@ -1,0 +1,9 @@
+/var/log/serverctl/*.log {
+    daily
+    rotate 30
+    missingok
+    notifempty
+    compress
+    delaycompress
+    create 0640 root adm
+}

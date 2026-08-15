@@ -1,0 +1,14 @@
+/var/www/*/logs/access.log /var/www/*/logs/error.log /var/www/*/logs/php-error.log {
+    daily
+    rotate 30
+    missingok
+    notifempty
+    compress
+    delaycompress
+    create 0640
+    su root root
+    sharedscripts
+    postrotate
+        test ! -s /run/nginx.pid || kill -USR1 "$(cat /run/nginx.pid)"
+    endscript
+}

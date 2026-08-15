@@ -1,0 +1,20 @@
+# Local/runtime state
+.env
+.env.*
+*.local
+*.log
+*.tmp
+
+# Server-generated state and secrets
+/var/
+/runtime/
+/secrets/
+dashboard/.env
+dashboard/app/config.local.php
+
+# Editor and OS metadata
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini

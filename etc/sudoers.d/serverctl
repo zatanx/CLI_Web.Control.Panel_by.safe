@@ -1,0 +1,5 @@
+# Members may invoke the validated serverctl entry point, not arbitrary service commands.
+%serverctl-admin ALL=(root) /usr/local/bin/serverctl
+# The PHP-FPM Dashboard may call only the structured read endpoints and the
+# validated dashboard action dispatcher. The dispatcher has its own whitelist.
+www-data ALL=(root) NOPASSWD: /usr/local/bin/serverctl dashboard snapshot, /usr/local/bin/serverctl dashboard websites, /usr/local/bin/serverctl dashboard logs *, /usr/local/bin/serverctl --yes dashboard action *

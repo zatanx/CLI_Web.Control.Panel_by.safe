@@ -1,0 +1,8 @@
+[Unit]
+Description=serverctl security scan
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/serverctl security scan --no-color
+PrivateTmp=true
+ProtectHome=true

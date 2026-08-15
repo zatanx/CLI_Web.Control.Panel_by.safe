@@ -1,0 +1,6 @@
+#!/bin/bash
+set -Eeuo pipefail
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+nginx -t
+systemctl reload nginx
