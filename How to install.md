@@ -23,8 +23,8 @@
 ### 1. ดาวน์โหลดโปรเจกต์ / Clone the repository
 
 ```bash
-git clone https://github.com/zatanx/Web-Control-Panel-by-safe.git
-cd Web-Control-Panel-by-safe
+git clone https://github.com/zatanx/CLI_Web.Control.Panel_by.safe.git
+cd CLI_Web.Control.Panel_by.safe
 ```
 
 ### 2. ติดตั้งแบบ Minimal / Install the minimal profile
