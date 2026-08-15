@@ -2,6 +2,10 @@
 
 `serverctl` is a lightweight web hosting manager for Ubuntu Server. It manages Nginx, isolated PHP-FPM pools, MariaDB, Let's Encrypt, UFW, Fail2Ban, AppArmor, backups, updates, health checks, and security audits. An optional PHP/Nginx Dashboard is available without adding Node.js or an administration daemon.
 
+## เริ่มติดตั้ง / Get started
+
+อ่านคู่มือการติดตั้งภาษาไทยและภาษาอังกฤษได้ที่ [How to install / วิธีติดตั้ง](How%20to%20install.md)
+
 ## Principles
 
 - One Linux user and one PHP-FPM pool per website
@@ -25,6 +29,7 @@ For Ubuntu 22.04, or multi-PHP on Ubuntu 24.04, review the third-party repositor
 
 ## Documentation
 
+- [How to install / วิธีติดตั้ง](How%20to%20install.md)
 - [Installation](INSTALL.md)
 - [CLI reference](CLI.md)
 - [Architecture](ARCHITECTURE.md)
