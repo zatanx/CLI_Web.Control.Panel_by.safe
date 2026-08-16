@@ -104,3 +104,6 @@ sudo serverctl dashboard install dashboard.example.com
 ดูรายละเอียดด้านความปลอดภัยและคำสั่งถอนการติดตั้งได้ที่ [DASHBOARD.md](DASHBOARD.md)
 
 See [DASHBOARD.md](DASHBOARD.md) for the Dashboard security model and uninstall instructions.
+
+### เข้าเมนูหลัก  sudo serverctl 
+
