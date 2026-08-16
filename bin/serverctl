@@ -5,8 +5,8 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 CDPATH=; export CDPATH
 
-SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REAL_SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
+SELF_DIR="$(cd -- "$(dirname -- "$REAL_SELF")" && pwd -P)"
 if [[ "$REAL_SELF" == /opt/serverctl/bin/serverctl ]]; then
   unset SERVERCTL_LIB_DIR SERVERCTL_ROOT SERVERCTL_TEST_MODE SERVERCTL_CONFIG_FILE SERVERCTL_ASSUME_YES
 fi
