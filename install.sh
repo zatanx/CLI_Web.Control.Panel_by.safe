@@ -6,7 +6,7 @@ export PATH
 CDPATH=; export CDPATH
 
 readonly INSTALL_LOG=/var/log/serverctl/install.log
-readonly SERVERCTL_VERSION=1.0.1 SERVERCTL_RELEASE_DATE=2026-08-16
+readonly SERVERCTL_VERSION=1.0.2 SERVERCTL_RELEASE_DATE=2026-08-16
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROFILE=minimal
 DEFAULT_PHP=8.3
@@ -255,7 +255,7 @@ summary() {
 SERVERCTL INSTALLATION COMPLETE
 ========================================
 Profile      : $PROFILE
-Version      : v$SERVERCTL_VERSION ($SERVERCTL_RELEASE_DATE)
+Version      : v$SERVERCTL_VERSION
 Default PHP  : $DEFAULT_PHP
 PHP versions : ${PHP_VERSIONS[*]}
 Management   : SSH + sudo serverctl

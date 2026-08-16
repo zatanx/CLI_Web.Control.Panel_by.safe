@@ -158,7 +158,7 @@ sudo serverctl
 sudo serverctl update serverctl
 ```
 
-ตรวจสอบ Version และวันที่ Release:
+ตรวจสอบ Version:
 
 ```bash
 sudo serverctl version

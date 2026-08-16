@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly EXIT_GENERAL=1 EXIT_INVALID_ARGUMENT=2 EXIT_PERMISSION=3 EXIT_VALIDATION=4 EXIT_SYSTEM=5
-SERVERCTL_VERSION="${SERVERCTL_VERSION:-1.0.1}"
+SERVERCTL_VERSION="${SERVERCTL_VERSION:-1.0.2}"
 SERVERCTL_RELEASE_DATE="${SERVERCTL_RELEASE_DATE:-2026-08-16}"
 SERVERCTL_ROOT="${SERVERCTL_ROOT:-}"
 SERVERCTL_TEST_MODE="${SERVERCTL_TEST_MODE:-0}"
@@ -37,7 +37,7 @@ ok() { printf '%s %s\n' "$(color '1;32' '[ OK ]')" "$*"; }
 warn() { printf '%s %s\n' "$(color '1;33' '[ WARNING ]')" "$*" >&2; }
 error() { printf '%s %s\n' "$(color '1;31' '[ ERROR ]')" "$*" >&2; }
 serverctl_version() {
-  printf 'serverctl version %s\nRelease date: %s\n' "$SERVERCTL_VERSION" "$SERVERCTL_RELEASE_DATE"
+  printf 'serverctl version %s\n' "$SERVERCTL_VERSION"
 }
 die() {
   local message=$1 rc=${2:-$EXIT_GENERAL}
