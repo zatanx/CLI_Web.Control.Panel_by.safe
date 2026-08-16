@@ -67,6 +67,7 @@ Commands:
   fail2ban status|list|ban IP|unban IP
   update serverctl|check|security|all
   update history|health|reboot-status
+  version                              Show serverctl version and release date
   dashboard status|snapshot|websites
   dashboard logs TYPE [LINES] [SEARCH]
   dashboard action ACTION [TARGET]
@@ -88,6 +89,10 @@ EOF
 main() {
   parse_global_options "$@"
   set -- "${PARSED_ARGS[@]}"
+  if (($# == 1)) && [[ "$1" == version || "$1" == --version ]]; then
+    serverctl_version
+    return
+  fi
   load_config
   init_runtime
 
@@ -103,6 +108,7 @@ main() {
   SERVERCTL_AUDIT_ACTION=$(redact_command "$command" "$@")
   audit_event "$SERVERCTL_AUDIT_ACTION" "STARTED"
   case "$command" in
+    version|--version) (($# == 0)) || die 'version accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; serverctl_version ;;
     status) cmd_status "$@" ;;
     health) cmd_health "$@" ;;
     website) cmd_website "$@" ;;

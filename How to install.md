@@ -157,3 +157,9 @@ sudo serverctl
 ```bash
 sudo serverctl update serverctl
 ```
+
+ตรวจสอบ Version และวันที่ Release:
+
+```bash
+sudo serverctl version
+```

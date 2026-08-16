@@ -53,7 +53,7 @@ $user = (string) ($_SESSION['user'] ?? 'admin');
     <div class="main-column">
         <header class="topbar">
             <button class="menu-toggle" type="button" aria-label="Toggle navigation" data-sidebar-toggle>☰</button>
-            <div><p class="eyebrow">CONTROL PANEL</p><h1 id="page-title">Dashboard Overview</h1></div>
+            <div><p class="eyebrow">CONTROL PANEL · v<?= h(SERVERCTL_VERSION) ?> · <?= h(SERVERCTL_RELEASE_DATE) ?></p><h1 id="page-title">Dashboard Overview</h1></div>
             <div class="topbar-actions"><span class="user-chip"><span class="user-dot"></span><?= h($user) ?></span><button class="button button-ghost" type="button" data-refresh>Refresh now</button></div>
         </header>
 

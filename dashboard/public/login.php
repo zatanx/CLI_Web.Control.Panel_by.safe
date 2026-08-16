@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="login-page">
 <main class="login-card" aria-labelledby="login-title">
     <div class="brand-mark">WS</div>
-    <p class="eyebrow">WEB SERVER MANAGER</p>
+    <p class="eyebrow">WEB SERVER MANAGER · v<?= h(SERVERCTL_VERSION) ?> · <?= h(SERVERCTL_RELEASE_DATE) ?></p>
     <h1 id="login-title">Sign in to Dashboard</h1>
     <p class="muted">Secure server operations console</p>
     <?php if ($error !== ''): ?><div class="alert alert-danger" role="alert"><?= h($error) ?></div><?php endif; ?>
