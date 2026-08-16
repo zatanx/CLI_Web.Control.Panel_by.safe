@@ -1,6 +1,6 @@
 # How to Install ( English )
 
-Documentation version: v1.1.9 (2026-08-16)
+Documentation version: v1.1.10 (2026-08-16)
 
 ## Requirements
 
@@ -29,7 +29,7 @@ The Dashboard source code is installed but remains disabled by default. All Dash
 
 ```bash
 sudo serverctl dashboard status
-sudo serverctl dashboard install xxxxxx.com --user myadmin
+sudo serverctl dashboard install xxxxxx.com
 ```
 
 Open a domain Dashboard at:
@@ -41,7 +41,7 @@ https://xxxxxx.com:8088/
 For a localhost or IP address:
 
 ```bash
-sudo serverctl dashboard install 192.168.2.66 --user myadmin
+sudo serverctl dashboard install 192.168.2.66
 ```
 
 Open it at:
@@ -81,7 +81,7 @@ sudo serverctl version
 
 # วิธีติดตั้ง ( ไทย )
 
-เวอร์ชันเอกสาร: v1.1.9 (16-08-2026)
+เวอร์ชันเอกสาร: v1.1.10 (16-08-2026)
 
 ## ความต้องการของระบบ
 
@@ -112,7 +112,7 @@ Dashboard จะติดตั้ง source code ไว้แต่ปิดก
 
 ```bash
 sudo serverctl dashboard status
-sudo serverctl dashboard install xxxxxx.com --user myadmin
+sudo serverctl dashboard install xxxxxx.com
 ```
 
 เข้า Dashboard ของ domain ที่:
@@ -124,7 +124,7 @@ https://xxxxxx.com:8088/
 สำหรับ localhost หรือ IP address:
 
 ```bash
-sudo serverctl dashboard install 192.168.2.66 --user myadmin
+sudo serverctl dashboard install 192.168.2.66
 ```
 
 เข้าใช้งานที่:
@@ -152,7 +152,7 @@ sudo serverctl
 sudo serverctl update serverctl
 ```
 
-ตรวจสอบเวอร์ชันที่ติดตั้ง:
+## ตรวจสอบเวอร์ชันที่ติดตั้ง:
 
 ```bash
 sudo serverctl version
