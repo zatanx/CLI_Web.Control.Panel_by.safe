@@ -7,11 +7,13 @@ serverctl                              Interactive menu
 serverctl status [--watch]
 serverctl health
 
+# Website names may be public domains, localhost, or IPv4 addresses. HTTP-only
+# localhost/private-LAN sites do not require an SSL certificate.
 serverctl website list
-serverctl website add DOMAIN [--php 8.2|8.3|8.4] [--yes]
-serverctl website remove DOMAIN [--yes] [--no-backup]
-serverctl website health DOMAIN
-serverctl website csp DOMAIN 'POLICY' [--yes]
+serverctl website add DOMAIN|IP|localhost [--php 8.2|8.3|8.4] [--yes]
+serverctl website remove DOMAIN|IP|localhost [--yes] [--no-backup]
+serverctl website health DOMAIN|IP|localhost
+serverctl website csp DOMAIN|IP|localhost 'POLICY' [--yes]
 
 serverctl php list
 serverctl php set DOMAIN VERSION [--yes]

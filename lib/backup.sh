@@ -37,7 +37,7 @@ backup_create() {
 
 backup_create_website() {
   local domain=$1 archive manifest stage
-  validate_domain "$domain" || die "Invalid domain." "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die "Invalid domain or IP address." "$EXIT_VALIDATION"
   website_exists "$domain" || die "Website not found." "$EXIT_VALIDATION"
   archive="$BACKUP_DIR/serverctl-website-$domain-$(backup_timestamp).tar.gz"
   stage=$(mktemp -d "$BACKUP_DIR/.stage.XXXXXX")
@@ -202,7 +202,7 @@ restore_website_stage() {
   local stage=$1 record domain php user site_root csp upload_limit rate_burst static_cache
   record="$stage/config/record.conf"; domain=$(record_get "$record" DOMAIN); php=$(record_get "$record" PHP_VERSION); csp=$(record_get "$record" CSP || true)
   upload_limit=$(record_get "$record" UPLOAD_LIMIT || printf 32m); rate_burst=$(record_get "$record" RATE_BURST || printf 40); static_cache=$(record_get "$record" STATIC_CACHE || printf off)
-  validate_domain "$domain" || die "Invalid website metadata in backup." "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die "Invalid website metadata in backup." "$EXIT_VALIDATION"
   validate_php_version "$php" || die "Unsupported PHP metadata in backup." "$EXIT_VALIDATION"
   validate_csp "$csp" || csp="default-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'"
   [[ "$upload_limit" =~ ^[1-9][0-9]{0,3}[kKmMgG]$ ]] || upload_limit=32m; [[ "$rate_burst" =~ ^([1-9]|[1-9][0-9]|100)$ ]] || rate_burst=40; [[ "$static_cache" == on || "$static_cache" == off ]] || static_cache=off
@@ -230,7 +230,7 @@ EOF
   reload_web_stack "$php" || die "Restored files, but generated web configuration failed validation." "$EXIT_VALIDATION"
   save_website_record "$domain" "$php" "$user" no online; update_record_value "$(website_record_path "$domain")" CSP "$csp"
   update_record_value "$(website_record_path "$domain")" UPLOAD_LIMIT "$upload_limit"; update_record_value "$(website_record_path "$domain")" RATE_BURST "$rate_burst"; update_record_value "$(website_record_path "$domain")" STATIC_CACHE "$static_cache"
-  warn "Website restored over HTTP. Re-enable SSL after verifying DNS and certificate state."
+  if is_local_site "$domain"; then warn "Local/LAN website restored over HTTP."; else warn "Website restored over HTTP. Re-enable SSL after verifying DNS and certificate state."; fi
 }
 
 backup_delete() {

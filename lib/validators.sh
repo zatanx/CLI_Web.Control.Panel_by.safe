@@ -7,6 +7,24 @@ validate_domain() {
   [[ "$domain" != *..* ]]
 }
 
+validate_site_name() {
+  local site=${1,,}
+  [[ "$site" == localhost ]] && return 0
+  if [[ "$site" != *:* ]] && validate_ip "$site"; then return 0; fi
+  validate_domain "$site"
+}
+
+is_local_site() {
+  local site=${1,,} first second
+  [[ "$site" == localhost ]] && return 0
+  [[ "$site" != *:* ]] && validate_ip "$site" || return 1
+  IFS=. read -r first second _ <<< "$site"
+  ((first == 10)) && return 0
+  ((first == 127)) && return 0
+  ((first == 192 && second == 168)) && return 0
+  ((first == 172 && second >= 16 && second <= 31))
+}
+
 validate_php_version() { [[ " $ALLOWED_PHP_VERSIONS " == *" $1 "* && "$1" =~ ^[0-9]+\.[0-9]+$ ]]; }
 validate_db_name() { [[ "$1" =~ ^[A-Za-z][A-Za-z0-9_]{0,47}$ ]]; }
 validate_backup_name() { [[ "$1" =~ ^serverctl-[A-Za-z0-9_.-]+\.(tar\.gz|tar\.gz\.gpg)$ ]] && [[ "$1" != *..* ]]; }

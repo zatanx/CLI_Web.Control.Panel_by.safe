@@ -37,7 +37,7 @@ website_add() {
     esac
   done
   domain=${domain,,}
-  validate_domain "$domain" || die "Invalid domain: $domain" "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die "Invalid domain or IP address: $domain" "$EXIT_VALIDATION"
   validate_php_version "$php" || die "Unsupported PHP version: $php" "$EXIT_VALIDATION"
   website_exists "$domain" && die "Website already exists: $domain" "$EXIT_VALIDATION"
   [[ "$SERVERCTL_TEST_MODE" == 1 || -x "/usr/sbin/php-fpm$php" || -x "/usr/bin/php-fpm$php" ]] || die "PHP $php FPM is not installed." "$EXIT_SYSTEM"
@@ -93,7 +93,7 @@ website_remove() {
   [[ -n "$domain" ]] || die "Domain is required." "$EXIT_INVALID_ARGUMENT"
   shift || true; domain=${domain,,}
   while (($#)); do case "$1" in --no-backup) no_backup=1 ;; *) die "Unknown website remove argument: $1" "$EXIT_INVALID_ARGUMENT" ;; esac; shift; done
-  validate_domain "$domain" || die "Invalid domain." "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die "Invalid domain or IP address." "$EXIT_VALIDATION"
   website_exists "$domain" || die "Website not found: $domain" "$EXIT_VALIDATION"
   local record php user ssl site_root
   record=$(website_record_path "$domain"); php=$(record_get "$record" PHP_VERSION); user=$(record_get "$record" USER); ssl=$(record_get "$record" SSL); site_root="$WEB_ROOT/$domain"
@@ -127,7 +127,7 @@ website_csp() {
   require_root
   local domain=${1:-} policy=${2:-}
   (($# == 2)) && [[ -n "$domain" && -n "$policy" ]] || die "Usage: serverctl website csp DOMAIN 'POLICY'" "$EXIT_INVALID_ARGUMENT"
-  validate_domain "$domain" || die "Invalid domain." "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die "Invalid domain or IP address." "$EXIT_VALIDATION"
   validate_csp "$policy" || die "CSP must be 1-1024 printable characters and cannot contain double quotes, backslashes, or newlines." "$EXIT_VALIDATION"
   website_exists "$domain" || die "Website not found." "$EXIT_VALIDATION"
   confirm "Replace the Content-Security-Policy for $domain?" || die "Cancelled." "$EXIT_GENERAL"
@@ -142,7 +142,7 @@ website_csp() {
 
 website_health() {
   local domain=${1:-}; (($# == 1)) || die "Domain is required and no extra arguments are allowed." "$EXIT_INVALID_ARGUMENT"
-  validate_domain "$domain" || die "Invalid domain." "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die "Invalid domain or IP address." "$EXIT_VALIDATION"
   website_exists "$domain" || die "Website not found." "$EXIT_VALIDATION"
   local file php socket failures=0
   file=$(website_record_path "$domain"); php=$(record_get "$file" PHP_VERSION); socket=$(php_socket_path "$domain")

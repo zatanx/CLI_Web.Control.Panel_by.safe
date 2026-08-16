@@ -21,6 +21,10 @@ assert_file_contains() { local name=$1 file=$2 pattern=$3; if grep -Eq "$pattern
 
 assert_true 'valid apex domain' validate_domain example.com
 assert_true 'valid subdomain' validate_domain erp.company.co.th
+assert_true 'accepts localhost site name' validate_site_name localhost
+assert_true 'accepts IPv4 site name' validate_site_name 192.168.1.50
+assert_false 'rejects IPv4 as public domain' validate_domain 192.168.1.50
+assert_true 'recognizes private site name' is_local_site 192.168.1.50
 assert_false 'rejects command substitution domain' validate_domain 'x$(id).com'
 assert_false 'rejects traversal domain' validate_domain '../example.com'
 assert_false 'rejects leading hyphen label' validate_domain '-bad.example.com'

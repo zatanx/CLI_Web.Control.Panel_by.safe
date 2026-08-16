@@ -38,9 +38,12 @@ check_mariadb_local() {
   ((found))
 }
 check_ssl() {
-  local file found=0
+  local file found=0 domain
   shopt -s nullglob
-  for file in "$STATE_DIR"/websites/*.conf; do found=1; [[ "$(record_get "$file" SSL)" == yes ]] || { shopt -u nullglob; return 1; }; done
+  for file in "$STATE_DIR"/websites/*.conf; do
+    found=1; domain=$(record_get "$file" DOMAIN)
+    [[ "$(record_get "$file" SSL)" == yes ]] || { is_local_site "$domain" || { shopt -u nullglob; return 1; }; }
+  done
   shopt -u nullglob
   ((found == 0)) || return 0
 }

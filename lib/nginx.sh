@@ -232,10 +232,10 @@ nginx_website() {
   local action=${1:-list}; shift || true domain key value file
   case "$action" in
     list) (($# == 0)) || die 'nginx website list accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; website_list ;;
-    view) domain=${1:-}; (($# == 1)) && validate_domain "$domain" || die 'Usage: serverctl nginx website view DOMAIN' "$EXIT_INVALID_ARGUMENT"; website_exists "$domain" || die 'Website not found.' "$EXIT_VALIDATION"; sed -n '1,500p' "$(nginx_available_dir)/$domain.conf" ;;
+    view) domain=${1:-}; (($# == 1)) && validate_site_name "$domain" || die 'Usage: serverctl nginx website view DOMAIN|IP|localhost' "$EXIT_INVALID_ARGUMENT"; website_exists "$domain" || die 'Website not found.' "$EXIT_VALIDATION"; sed -n '1,500p' "$(nginx_available_dir)/$domain.conf" ;;
     set)
       domain=${1:-}; key=${2:-}; value=${3:-}; (($# == 3)) || die 'Usage: serverctl nginx website set DOMAIN <upload-limit|rate-limit|static-cache> VALUE' "$EXIT_INVALID_ARGUMENT"
-      validate_domain "$domain" || die 'Invalid domain.' "$EXIT_VALIDATION"; website_exists "$domain" || die 'Website not found.' "$EXIT_VALIDATION"
+      validate_site_name "$domain" || die 'Invalid domain or IP address.' "$EXIT_VALIDATION"; website_exists "$domain" || die 'Website not found.' "$EXIT_VALIDATION"
       nginx_website_setting "$domain" "$key" "$value" ;;
     access) nginx_website_access "$@" ;;
     *) die 'Usage: serverctl nginx website <list|view|set|access>' "$EXIT_INVALID_ARGUMENT" ;;
@@ -245,7 +245,7 @@ nginx_website() {
 nginx_website_access() {
   require_root
   local domain=${1:-} action=${2:-list} cidr=${3:-} file candidate current_mode=open
-  validate_domain "$domain" || die 'Invalid domain.' "$EXIT_VALIDATION"; website_exists "$domain" || die 'Website not found.' "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die 'Invalid domain or IP address.' "$EXIT_VALIDATION"; website_exists "$domain" || die 'Website not found.' "$EXIT_VALIDATION"
   file=$(nginx_access_path "$domain")
   if [[ ! -f "$file" ]]; then atomic_write "$file" 0644 root root <<'EOF'
 # Managed by serverctl.
@@ -313,7 +313,7 @@ nginx_log() {
   done
   [[ "$lines" =~ ^(50|100|500)$ ]] || die 'Log lines must be 50, 100, or 500.' "$EXIT_VALIDATION"
   [[ ${#search} -le 200 && "$search" != *$'\n'* && "$search" != *$'\r'* ]] || die 'Invalid log search text.' "$EXIT_VALIDATION"
-  if [[ -n "$domain" && "$domain" != global ]]; then validate_domain "$domain" || die 'Invalid domain.' "$EXIT_VALIDATION"; website_exists "$domain" || die 'Website not found.' "$EXIT_VALIDATION"; file="$WEB_ROOT/$domain/logs/$type.log"
+  if [[ -n "$domain" && "$domain" != global ]]; then validate_site_name "$domain" || die 'Invalid domain or IP address.' "$EXIT_VALIDATION"; website_exists "$domain" || die 'Website not found.' "$EXIT_VALIDATION"; file="$WEB_ROOT/$domain/logs/$type.log"
   elif [[ "$type" == access ]]; then file=/var/log/nginx/access.log; else file=/var/log/nginx/error.log; fi
   [[ -f "$file" ]] || die "Log file not found: $file" "$EXIT_SYSTEM"
   if [[ -n "$search" ]]; then grep -F -- "$search" "$file" | tail -n "$lines" || true

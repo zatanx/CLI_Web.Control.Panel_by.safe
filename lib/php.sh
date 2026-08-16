@@ -8,7 +8,7 @@ cmd_php() {
 php_health() {
   local domain=${1:-} record version pool socket memory opcache failures=0
   (($# == 1)) && [[ -n "$domain" ]] || die "Usage: serverctl php health DOMAIN" "$EXIT_INVALID_ARGUMENT"
-  validate_domain "$domain" || die "Invalid domain." "$EXIT_VALIDATION"; website_exists "$domain" || die "Website not found." "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die "Invalid domain or IP address." "$EXIT_VALIDATION"; website_exists "$domain" || die "Website not found." "$EXIT_VALIDATION"
   record=$(website_record_path "$domain"); version=$(record_get "$record" PHP_VERSION); pool="$(php_pool_dir "$version")/$domain.conf"; socket=$(php_socket_path "$domain")
   printf 'PHP health: %s\nVersion: %s\nPool: %s\nSocket: %s\n' "$domain" "$version" "$pool" "$socket"
   if service_is_active "php$version-fpm" || [[ "$SERVERCTL_TEST_MODE" == 1 ]]; then ok 'PHP-FPM service running'; else error 'PHP-FPM service stopped'; ((++failures)); fi
@@ -36,7 +36,7 @@ php_set() {
   require_root
   local domain=${1:-} new_version=${2:-}
   (($# == 2)) && [[ -n "$domain" && -n "$new_version" ]] || die "Usage: serverctl php set DOMAIN VERSION" "$EXIT_INVALID_ARGUMENT"
-  validate_domain "$domain" || die "Invalid domain." "$EXIT_VALIDATION"
+  validate_site_name "$domain" || die "Invalid domain or IP address." "$EXIT_VALIDATION"
   validate_php_version "$new_version" || die "Unsupported PHP version." "$EXIT_VALIDATION"
   website_exists "$domain" || die "Website not found." "$EXIT_VALIDATION"
   [[ "$SERVERCTL_TEST_MODE" == 1 || -x "/usr/sbin/php-fpm$new_version" || -x "/usr/bin/php-fpm$new_version" ]] || die "PHP $new_version FPM is not installed." "$EXIT_SYSTEM"
