@@ -205,16 +205,8 @@ EOF
   atomic_write "$DASHBOARD_NGINX_AVAILABLE" 0644 root root <<EOF
 # Managed by serverctl. Manual changes may be overwritten.
 server {
-    listen 80;
-    listen [::]:80;
-    server_name $domain;
-    location ^~ /.well-known/acme-challenge/ { root $DASHBOARD_INSTALL_ROOT/public; allow all; }
-    location / { return 301 https://\$host\$request_uri; }
-}
-
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen $local_port ssl http2;
+    listen [::]:$local_port ssl http2;
     server_name $domain;
     root $DASHBOARD_INSTALL_ROOT/public;
     index index.php;
@@ -245,7 +237,7 @@ EOF
 
 dashboard_install() {
   require_root
-  local domain=${1:-} dashboard_user=admin user_supplied=0 requested_user='' password_hash='' password readback php_socket cert_root local_mode=no dashboard_ssl=yes dashboard_port=443
+  local domain=${1:-} dashboard_user=admin user_supplied=0 requested_user='' password_hash='' password readback php_socket cert_root local_mode=no dashboard_ssl=yes dashboard_port=8088
   [[ -n "$domain" ]] || die 'Usage: serverctl dashboard install DOMAIN [--user USER] [--password-hash HASH]' "$EXIT_INVALID_ARGUMENT"
   shift || true; domain=${domain,,}; dashboard_validate_name "$domain" || die 'Invalid dashboard domain, localhost, IPv4 address, or dashboard.IP hostname.' "$EXIT_VALIDATION"
   while (($#)); do
@@ -296,11 +288,11 @@ EOF
   audit_event 'dashboard install' SUCCESS "domain=$domain"
   if [[ "$local_mode" == yes ]]; then
     ok "Dashboard enabled: http://$domain:$dashboard_port/"
-    if ufw status 2>/dev/null | grep -q 'Status: active'; then
-      warn "Allow TCP port $dashboard_port from the LAN with: serverctl firewall add $dashboard_port tcp LAN_CIDR"
-    fi
   else
-    ok "Dashboard enabled: https://$domain/"
+    ok "Dashboard enabled: https://$domain:$dashboard_port/"
+  fi
+  if ufw status 2>/dev/null | grep -q 'Status: active'; then
+    warn "Dashboard listens on TCP $dashboard_port. Allow it as needed with: serverctl firewall add $dashboard_port tcp SOURCE_CIDR"
   fi
 }
 

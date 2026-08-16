@@ -131,6 +131,12 @@ Dashboard ภายใน LAN จะเปิดที่ port `8088`:
 http://dashboard.192.168.2.66:8088/
 ```
 
+สำหรับ domain Dashboard จะใช้ HTTPS ที่ port เดียวกัน:
+
+```text
+https://dashboard.example.com:8088/
+```
+
 หากเปิดใช้งาน UFW ให้อนุญาต port นี้จากวง LAN ของคุณ เช่น:
 
 ```bash
