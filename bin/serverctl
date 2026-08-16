@@ -18,7 +18,7 @@ else
   LIB_DIR="/opt/serverctl/lib"
 fi
 
-for library in common validators registry render website php ssl database backup security nginx system dashboard menu; do
+for library in common validators registry render website php ssl database backup sftp security nginx system dashboard menu; do
   # shellcheck source=/dev/null
   source "$LIB_DIR/$library.sh"
 done
@@ -53,6 +53,7 @@ Commands:
   database create NAME [--yes]
   database remove NAME [--yes] [--no-backup]
   database health [NAME]
+  sftp list|password DOMAIN|enable DOMAIN|disable DOMAIN
   backup create [--all|--website DOMAIN|--database NAME]
   backup list
   backup verify ARCHIVE
@@ -108,6 +109,7 @@ main() {
     ssl) cmd_ssl "$@" ;;
     database) cmd_database "$@" ;;
     backup) cmd_backup "$@" ;;
+    sftp) cmd_sftp "$@" ;;
     logs) cmd_logs "$@" ;;
     security) cmd_security "$@" ;;
     firewall) cmd_firewall "$@" ;;

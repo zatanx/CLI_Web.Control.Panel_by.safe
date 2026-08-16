@@ -28,6 +28,11 @@ serverctl database create NAME [--yes]
 serverctl database remove NAME [--yes] [--no-backup]
 serverctl database health [NAME]
 
+serverctl sftp list
+serverctl sftp password DOMAIN|IP|localhost
+serverctl sftp enable DOMAIN|IP|localhost
+serverctl sftp disable DOMAIN|IP|localhost
+
 serverctl backup create [--all|--website DOMAIN|--database NAME] [--encrypt]
 serverctl backup list
 serverctl backup verify ARCHIVE

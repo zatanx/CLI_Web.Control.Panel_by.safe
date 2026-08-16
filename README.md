@@ -40,4 +40,4 @@ For Ubuntu 22.04, or multi-PHP on Ubuntu 24.04, review the third-party repositor
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Web Dashboard](DASHBOARD.md)
 
-The interactive CLI interface retains its 14 main choices. The optional Web Dashboard is a separate PHP-FPM application and is not added as a CLI menu item.
+The interactive CLI interface has 15 main choices, including Database Management and SFTP Users. The optional Web Dashboard is a separate PHP-FPM application and is not added as a CLI menu item.

@@ -50,7 +50,7 @@ website_add() {
 }
 
 _website_add_locked() {
-  local domain=$1 php=$2 user=$3 site_root=$4 pool site_config link
+  local domain=$1 php=$2 user=$3 site_root=$4 pool site_config link sftp_password
   pool="$(php_pool_dir "$php")/$domain.conf"; site_config="$(nginx_available_dir)/$domain.conf"; link="$(nginx_enabled_dir)/$domain.conf"
   info "Creating isolated website $domain ($user, PHP $php)..."
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
@@ -69,6 +69,13 @@ EOF
     chown "root:$user" "$site_root/logs"; chown "www-data:adm" "$site_root/logs/access.log" "$site_root/logs/error.log"; chown "$user:$user" "$site_root/logs/php-error.log"
     chmod 0750 "$site_root" "$site_root/public" "$site_root/logs" "$site_root/tmp"; chmod 0640 "$site_root/logs/"*.log
   fi
+  sftp_password=$(sftp_generate_password)
+  if ! sftp_prepare_site "$user" "$site_root" || ! sftp_set_password "$user" "$sftp_password" || ! sftp_apply_config "$domain" "$user" "$site_root"; then
+    rm -f -- "$link" "$site_config" "$pool" "$(nginx_access_path "$domain")"
+    rm -rf -- "$site_root"
+    [[ "$SERVERCTL_TEST_MODE" == 1 ]] || userdel "$user" 2>/dev/null || true
+    die "SFTP configuration failed; website creation rolled back." "$EXIT_SYSTEM"
+  fi
   if [[ ! -e "$site_root/public/index.html" ]]; then
     atomic_write "$site_root/public/index.html" 0640 "$user" www-data <<EOF
 <!doctype html><html lang="en"><meta charset="utf-8"><title>$domain</title><h1>$domain is ready</h1></html>
@@ -79,12 +86,15 @@ EOF
   mkdir -p -- "$(nginx_enabled_dir)"
   [[ -L "$link" ]] || ln -s "$site_config" "$link"
   if ! reload_web_stack "$php"; then
+    sftp_apply_config "" "" "" "$domain" || true
     rm -f -- "$link" "$site_config" "$pool" "$(nginx_access_path "$domain")"
+    rm -rf -- "$site_root"
     [[ "$SERVERCTL_TEST_MODE" == 1 ]] || userdel "$user" 2>/dev/null || true
     die "Validation failed; website configuration rolled back." "$EXIT_VALIDATION"
   fi
-  save_website_record "$domain" "$php" "$user" no online
+  save_website_record "$domain" "$php" "$user" no online yes
   ok "Website created: http://$domain ($site_root/public)"
+  printf 'SFTP User: %s\nPassword:  %s\nHost:      %s\nPort:      22\nPath:      /public\n' "$user" "$sftp_password" "$domain"
 }
 
 website_remove() {
@@ -134,6 +144,7 @@ _website_remove_locked() {
   rm -rf -- "$site_root"
   rm -f -- "$(website_record_path "$domain")"
   commit_configs
+  sftp_apply_config "" "" "" "$domain" || warn "Website removed, but the SFTP SSH configuration could not be reloaded."
   ok "Website removed: $domain"
 }
 

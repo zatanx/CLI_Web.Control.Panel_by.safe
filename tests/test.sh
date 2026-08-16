@@ -6,7 +6,7 @@ TEST_ROOT=$(mktemp -d)
 trap 'rm -rf -- "$TEST_ROOT"' EXIT
 export SERVERCTL_ROOT=$TEST_ROOT SERVERCTL_TEST_MODE=1 SERVERCTL_ASSUME_YES=1 SERVERCTL_COLOR=never
 
-for library in common validators registry render website php ssl database backup security nginx system dashboard menu; do
+for library in common validators registry render website php ssl database backup sftp security nginx system dashboard menu; do
   # shellcheck source=/dev/null
   source "$PROJECT_DIR/lib/$library.sh"
 done
@@ -47,6 +47,8 @@ user_a=$(website_user example.com); user_b=$(website_user example.com); user_c=$
 website_add example.com --php 8.3
 record=$(website_record_path example.com)
 assert_true 'website registry created' test -f "$record"
+assert_file_contains 'website SFTP account enabled' "$record" '^SFTP_ENABLED=yes$'
+assert_file_contains 'SFTP uses internal subsystem' "$(root_path /etc/ssh/sshd_config.d/59-serverctl-sftp.conf)" 'ForceCommand internal-sftp'
 assert_true 'website public directory created' test -d "$WEB_ROOT/example.com/public"
 assert_file_contains 'Nginx blocks hidden files' "$(nginx_available_dir)/example.com.conf" 'location ~ \(\^\|/\)\\\.'
 assert_file_contains 'Nginx blocks PHP below uploads' "$(nginx_available_dir)/example.com.conf" 'uploads'

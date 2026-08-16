@@ -15,7 +15,7 @@ record_get() {
 }
 
 save_website_record() {
-  local domain=$1 php=$2 user=$3 ssl=${4:-no} status=${5:-online}
+  local domain=$1 php=$2 user=$3 ssl=${4:-no} status=${5:-online} sftp_enabled=${6:-no}
   atomic_write "$(website_record_path "$domain")" 0640 root root <<EOF
 DOMAIN=$domain
 PHP_VERSION=$php
@@ -27,6 +27,7 @@ CSP=default-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'sel
 UPLOAD_LIMIT=32m
 RATE_BURST=40
 STATIC_CACHE=off
+SFTP_ENABLED=$sftp_enabled
 CREATED_AT=$(timestamp)
 EOF
 }

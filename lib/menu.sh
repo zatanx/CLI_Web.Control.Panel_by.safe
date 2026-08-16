@@ -27,7 +27,8 @@ interactive_menu() {
 11. Fail2Ban
 12. System Update
 13. Nginx
-14. Exit
+14. SFTP Users
+15. Exit
 ========================================
 EOF
     printf 'Select option: '; read -r choice
@@ -45,7 +46,8 @@ EOF
       11) fail2ban-client status || true; menu_pause ;;
       12) menu_system_update ;;
       13) menu_nginx ;;
-      14) return 0 ;;
+      14) menu_sftp ;;
+      15) return 0 ;;
       *) warn 'Invalid option.'; sleep 1 ;;
     esac
   done
@@ -175,6 +177,23 @@ menu_nginx_restore() {
 menu_add_website() { local domain php; printf 'Domain: '; read -r domain; printf 'PHP version [%s]: ' "$DEFAULT_PHP_VERSION"; read -r php; php=${php:-$DEFAULT_PHP_VERSION}; menu_exec website add "$domain" --php "$php"; menu_pause; }
 menu_remove_website() { local domain; website_list; printf '\nDomain to remove: '; read -r domain; menu_exec website remove "$domain"; menu_pause; }
 menu_enable_ssl() { local domain email; printf 'Domain: '; read -r domain; printf 'Let\x27s Encrypt email (optional): '; read -r email; if [[ -n "$email" ]]; then menu_exec ssl enable "$domain" --email "$email"; else menu_exec ssl enable "$domain"; fi; menu_pause; }
+
+menu_sftp() {
+  local choice domain
+  while true; do
+    printf '\n========================================\n           SFTP USERS\n========================================\n\n  1. List SFTP Users\n  2. Reset Password\n  3. Enable SFTP\n  4. Disable SFTP\n\n  0. Back\n========================================\nSelect option: '
+    read -r choice
+    case "$choice" in
+      1) menu_exec sftp list; menu_pause ;;
+      2) printf 'Website: '; read -r domain; [[ -n "$domain" ]] && menu_exec sftp password "$domain"; menu_pause ;;
+      3) printf 'Website: '; read -r domain; [[ -n "$domain" ]] && menu_exec sftp enable "$domain"; menu_pause ;;
+      4) printf 'Website: '; read -r domain; [[ -n "$domain" ]] && menu_exec sftp disable "$domain"; menu_pause ;;
+      0) return ;;
+      *) warn 'Invalid option.' ;;
+    esac
+  done
+}
+
 menu_database() {
   local choice database
   while true; do
