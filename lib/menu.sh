@@ -17,7 +17,7 @@ interactive_menu() {
 1.  Add Website
 2.  Remove Website
 3.  Enable SSL
-4.  Create Database
+4.  Database Management
 5.  PHP Version
 6.  Backup
 7.  View Logs
@@ -35,7 +35,7 @@ EOF
       1) menu_add_website ;;
       2) menu_remove_website ;;
       3) menu_enable_ssl ;;
-      4) menu_create_database ;;
+      4) menu_database ;;
       5) menu_php ;;
       6) menu_backup ;;
       7) menu_logs ;;
@@ -175,7 +175,21 @@ menu_nginx_restore() {
 menu_add_website() { local domain php; printf 'Domain: '; read -r domain; printf 'PHP version [%s]: ' "$DEFAULT_PHP_VERSION"; read -r php; php=${php:-$DEFAULT_PHP_VERSION}; menu_exec website add "$domain" --php "$php"; menu_pause; }
 menu_remove_website() { local domain; website_list; printf '\nDomain to remove: '; read -r domain; menu_exec website remove "$domain"; menu_pause; }
 menu_enable_ssl() { local domain email; printf 'Domain: '; read -r domain; printf 'Let\x27s Encrypt email (optional): '; read -r email; if [[ -n "$email" ]]; then menu_exec ssl enable "$domain" --email "$email"; else menu_exec ssl enable "$domain"; fi; menu_pause; }
-menu_create_database() { local database; printf 'Database name: '; read -r database; menu_exec database create "$database"; menu_pause; }
+menu_database() {
+  local choice database
+  while true; do
+    printf '\n========================================\n        DATABASE MANAGEMENT\n========================================\n\n  1. List Databases\n  2. Create Database\n  3. Remove Database\n  4. Database Health\n\n  0. Back\n========================================\nSelect option: '
+    read -r choice
+    case "$choice" in
+      1) menu_exec database list; menu_pause ;;
+      2) printf 'Database name: '; read -r database; [[ -n "$database" ]] && menu_exec database create "$database"; menu_pause ;;
+      3) database_list; printf '\nDatabase to remove (blank to return): '; read -r database; [[ -n "$database" ]] || continue; menu_exec database remove "$database"; menu_pause ;;
+      4) printf 'Database name (blank for server health): '; read -r database; if [[ -n "$database" ]]; then menu_exec database health "$database"; else menu_exec database health; fi; menu_pause ;;
+      0) return ;;
+      *) warn 'Invalid option.' ;;
+    esac
+  done
+}
 
 menu_php() {
   local choice domain version
