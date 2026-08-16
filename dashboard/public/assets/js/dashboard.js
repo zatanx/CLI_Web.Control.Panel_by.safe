@@ -7,6 +7,12 @@
     const qs = (selector, root = document) => root.querySelector(selector);
     const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
     const escapeText = (value) => String(value ?? '');
+    const confirmModal = qs('[data-confirm-modal]');
+    const confirmMessage = qs('[data-confirm-message]', confirmModal || document);
+    const confirmAccept = qs('[data-confirm-accept]', confirmModal || document);
+    const confirmCancel = qs('[data-confirm-cancel]', confirmModal || document);
+    let confirmResolve = null;
+    let previousFocus = null;
 
     const showToast = (message, isError = false) => {
         const toast = qs('[data-toast]');
@@ -16,6 +22,38 @@
         toast.classList.add('show');
         window.setTimeout(() => toast.classList.remove('show'), 3500);
     };
+
+    const closeConfirmModal = (confirmed) => {
+        if (!confirmModal || !confirmResolve) return;
+        const resolve = confirmResolve;
+        confirmResolve = null;
+        confirmModal.hidden = true;
+        confirmModal.setAttribute('aria-hidden', 'true');
+        body.classList.remove('modal-open');
+        previousFocus?.focus();
+        previousFocus = null;
+        resolve(confirmed);
+    };
+
+    const showConfirmModal = (message) => {
+        if (!confirmModal) return Promise.resolve(window.confirm(message));
+        previousFocus = document.activeElement;
+        confirmMessage.textContent = message;
+        confirmModal.hidden = false;
+        confirmModal.setAttribute('aria-hidden', 'false');
+        body.classList.add('modal-open');
+        window.requestAnimationFrame(() => confirmAccept?.focus());
+        return new Promise((resolve) => { confirmResolve = resolve; });
+    };
+
+    confirmAccept?.addEventListener('click', () => closeConfirmModal(true));
+    confirmCancel?.addEventListener('click', () => closeConfirmModal(false));
+    confirmModal?.addEventListener('click', (event) => {
+        if (event.target === confirmModal) closeConfirmModal(false);
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && confirmResolve) closeConfirmModal(false);
+    });
 
     const setText = (selector, value) => {
         const element = qs(selector);
@@ -141,7 +179,7 @@
     }));
     qsa('[data-action]').forEach((button) => button.addEventListener('click', async () => {
         const message = button.dataset.confirm || 'Continue with this administrative action?';
-        if (!window.confirm(message)) return;
+        if (!(await showConfirmModal(message))) return;
         button.disabled = true;
         try { await apiPost(button.dataset.action, '', true); showToast('Action completed.'); await loadSnapshot(); }
         catch (error) { showToast(error.message, true); }

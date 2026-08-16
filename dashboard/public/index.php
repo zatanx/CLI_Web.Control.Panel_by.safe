@@ -102,6 +102,16 @@ $user = (string) ($_SESSION['user'] ?? 'admin');
         </main>
     </div>
 </div>
+<div class="confirm-modal-backdrop" data-confirm-modal hidden aria-hidden="true">
+    <section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message">
+        <h2 id="confirm-modal-title">Confirm action</h2>
+        <p class="muted" data-confirm-message></p>
+        <div class="confirm-modal-actions">
+            <button class="button button-secondary" type="button" data-confirm-cancel>Cancel</button>
+            <button class="button button-danger" type="button" data-confirm-accept>Confirm</button>
+        </div>
+    </section>
+</div>
 <div class="toast" data-toast role="status" aria-live="polite"></div>
 <script src="assets/js/dashboard.js" defer></script>
 </body>
