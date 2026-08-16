@@ -126,7 +126,11 @@ install_serverctl() {
   install -m 0644 "$SCRIPT_DIR"/lib/*.sh /opt/serverctl/lib/
   install -d -m 0750 -o root -g www-data /opt/serverctl/dashboard/app /opt/serverctl/dashboard/views
   install -d -m 0755 -o root -g root /opt/serverctl/dashboard/public /opt/serverctl/dashboard/public/assets /opt/serverctl/dashboard/public/assets/css /opt/serverctl/dashboard/public/assets/js /opt/serverctl/dashboard/public/api
-  find "$SCRIPT_DIR/dashboard/app" "$SCRIPT_DIR/dashboard/views" -type f -exec install -m 0640 -o root -g www-data {} /opt/serverctl/dashboard/app/ \;
+  [[ -d "$SCRIPT_DIR/dashboard/app" ]] || fail 'Dashboard app directory is missing from installer source.'
+  find "$SCRIPT_DIR/dashboard/app" -type f -exec install -m 0640 -o root -g www-data {} /opt/serverctl/dashboard/app/ \;
+  if [[ -d "$SCRIPT_DIR/dashboard/views" ]]; then
+    find "$SCRIPT_DIR/dashboard/views" -type f -exec install -m 0640 -o root -g www-data {} /opt/serverctl/dashboard/views/ \;
+  fi
   find "$SCRIPT_DIR/dashboard/public" -maxdepth 1 -type f -exec install -m 0644 -o root -g root {} /opt/serverctl/dashboard/public/ \;
   find "$SCRIPT_DIR/dashboard/public/api" -type f -exec install -m 0644 -o root -g root {} /opt/serverctl/dashboard/public/api/ \;
   find "$SCRIPT_DIR/dashboard/public/assets/css" -type f -exec install -m 0644 -o root -g root {} /opt/serverctl/dashboard/public/assets/css/ \;
