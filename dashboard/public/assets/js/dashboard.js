@@ -55,7 +55,7 @@
         const query = new URLSearchParams({ resource, ...params });
         const request = `GET ${apiUrl}?${query}`;
         try {
-            const response = await fetch(request, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+            const response = await fetch(`${apiUrl}?${query}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
             return await parseApiResponse(response, request);
         } catch (error) {
             console.error('[Dashboard API] GET error', { request, error });
