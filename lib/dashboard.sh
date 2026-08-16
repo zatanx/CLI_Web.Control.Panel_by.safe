@@ -190,7 +190,7 @@ server {
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
     add_header Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'" always;
     location / { try_files \$uri \$uri/ /index.php?\$query_string; }
-    location ^~ /api/ { try_files \$uri =404; }
+    location /api/ { try_files \$uri =404; }
     location ~ ^/(app|views|config) { deny all; }
     location ~ \.php$ {
         try_files \$uri =404;
@@ -230,7 +230,7 @@ server {
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
     add_header Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'" always;
     location / { try_files \$uri \$uri/ /index.php?\$query_string; }
-    location ^~ /api/ { try_files \$uri =404; }
+    location /api/ { try_files \$uri =404; }
     location ~ ^/(app|views|config) { deny all; }
     location ~ \.php$ {
         try_files \$uri =404;
