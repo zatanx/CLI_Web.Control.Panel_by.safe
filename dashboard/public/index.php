@@ -15,7 +15,7 @@ $user = (string) ($_SESSION['user'] ?? 'admin');
     <title>Web Server Manager</title>
     <link rel="stylesheet" href="assets/css/dashboard.css">
 </head>
-<body data-api-url="api/index.php" data-csrf-token="<?= h($csrf) ?>" data-bot-local="<?= dashboard_request_is_local_host() ? 'yes' : 'no' ?>">
+<body data-api-url="api/index.php" data-csrf-token="<?= h($csrf) ?>">
 <div class="app-shell">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">

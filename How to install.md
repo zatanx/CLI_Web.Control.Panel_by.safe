@@ -156,7 +156,7 @@ See [DASHBOARD.md](DASHBOARD.md) for the Dashboard security model and uninstall 
 
 กรอก Site Key และ Secret Key แล้วกด `Save Bot Protection` ระบบจะตรวจสอบ token ฝั่ง server ก่อนอนุญาตให้ Login และจะไม่แสดง Secret Key กลับใน Dashboard หากไม่ต้องการใช้ ให้เลือก `Disabled` แล้วบันทึก
 
-เมื่อเข้า Dashboard ผ่าน `localhost` หรือ Private IP เช่น `192.168.2.66:8088` ระบบจะ bypass Bot Protection สำหรับการใช้งานภายใน LAN แต่เมื่อเข้าเป็น domain เช่น `https://xxxxxx.com:8088` จะเรียกใช้ Bot Protection ตาม Service ที่เลือก
+เมื่อเปิดใช้งาน Bot Protection ระบบจะตรวจสอบ Login ทุกช่องทาง ทั้ง `localhost`, Private IP เช่น `192.168.2.66:8088` และ domain เช่น `https://xxxxxx.com:8088`
 
 หาก Login ผิดครบ 5 ครั้งภายใน 10 นาที ระบบจะล็อกการ Login และ Fail2Ban จะบล็อก IP ด้วย UFW เป็นเวลา 1 ชั่วโมง
 

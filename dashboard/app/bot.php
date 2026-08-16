@@ -19,9 +19,6 @@ function dashboard_bot_secret(): string
 
 function dashboard_bot_enabled(): bool
 {
-    if (dashboard_request_is_local_host()) {
-        return false;
-    }
     return dashboard_bot_provider() !== 'none'
         && dashboard_bot_site_key() !== ''
         && dashboard_bot_secret() !== '';

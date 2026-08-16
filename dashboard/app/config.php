@@ -4,7 +4,7 @@ declare(strict_types=1);
 const DASHBOARD_APP_ROOT = __DIR__;
 const DASHBOARD_ROOT = __DIR__ . '/..';
 const DASHBOARD_PUBLIC_ROOT = DASHBOARD_ROOT . '/public';
-const SERVERCTL_VERSION = '1.1.4';
+const SERVERCTL_VERSION = '1.1.5';
 const SERVERCTL_RELEASE_DATE = '2026-08-16';
 
 $dashboard_config_file = getenv('SERVERCTL_DASHBOARD_CONFIG') ?: '/etc/serverctl/dashboard.conf';
@@ -45,49 +45,6 @@ function dashboard_is_local_mode(): bool
 function dashboard_request_is_https(): bool
 {
     return isset($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== '' && strtolower((string) $_SERVER['HTTPS']) !== 'off';
-}
-
-function dashboard_request_host(): string
-{
-    $host = strtolower(trim((string) ($_SERVER['HTTP_HOST'] ?? '')));
-    if ($host === '') {
-        return '';
-    }
-    if (str_starts_with($host, '[')) {
-        $end = strpos($host, ']');
-        $host = $end === false ? $host : substr($host, 1, $end - 1);
-    } else {
-        $host = preg_replace('/:\\d+$/', '', $host) ?? $host;
-    }
-    return rtrim($host, '.');
-}
-
-function dashboard_request_is_local_host(): bool
-{
-    $host = dashboard_request_host();
-    if ($host === 'localhost' || str_ends_with($host, '.localhost')) {
-        return true;
-    }
-    if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
-        $address = ip2long($host);
-        return $address !== false && (
-            ($address >= ip2long('10.0.0.0') && $address <= ip2long('10.255.255.255'))
-            || ($address >= ip2long('172.16.0.0') && $address <= ip2long('172.31.255.255'))
-            || ($address >= ip2long('192.168.0.0') && $address <= ip2long('192.168.255.255'))
-            || ($address >= ip2long('127.0.0.0') && $address <= ip2long('127.255.255.255'))
-            || ($address >= ip2long('169.254.0.0') && $address <= ip2long('169.254.255.255'))
-        );
-    }
-    if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false) {
-        $packed = inet_pton($host);
-        if ($packed === false) {
-            return false;
-        }
-        $first = ord($packed[0]);
-        $second = ord($packed[1]);
-        return $host === '::1' || (($first & 0xfe) === 0xfc) || ($first === 0xfe && ($second & 0xc0) === 0x80);
-    }
-    return false;
 }
 
 function dashboard_state_dir(): string
