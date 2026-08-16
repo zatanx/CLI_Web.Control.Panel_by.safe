@@ -241,7 +241,7 @@ UPDATE_TOTAL=0 UPDATE_SECURITY=0 UPDATE_NEW=0 UPDATE_REMOVED=0 UPDATE_IMPORTANT=
 
 apt_lock_check() {
   local lock
-  if pgrep -x unattended-upgrade >/dev/null 2>&1 || pgrep -x unattended-upgr >/dev/null 2>&1; then die 'Automatic update is currently running. Please wait.' "$EXIT_SYSTEM"; fi
+  if pgrep -af '(^|/)(unattended-upgrade|unattended-upgr)([[:space:]]|$)' >/dev/null 2>&1; then die 'Automatic update is currently running. Please wait.' "$EXIT_SYSTEM"; fi
   if has_command fuser; then
     for lock in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock /var/lib/apt/lists/lock; do
       if fuser "$lock" >/dev/null 2>&1; then die "Another package manager holds $lock. Update was not started." "$EXIT_SYSTEM"; fi
