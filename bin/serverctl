@@ -24,9 +24,10 @@ for library in common validators registry render website php ssl database backup
 done
 
 on_error() {
-  local rc=$?
-  audit_event "${SERVERCTL_AUDIT_ACTION:-unknown}" "FAILED" "exit=$rc"
-  error "Command failed (exit $rc). See ${SERVERCTL_LOG_FILE}."
+  local rc=$? failed_line=${BASH_LINENO[0]:-unknown} failed_command=${BASH_COMMAND:-unknown}
+  failed_command=$(printf '%s' "$failed_command" | tr '\n\r\t' '   ' | cut -c1-300)
+  audit_event "${SERVERCTL_AUDIT_ACTION:-unknown}" "FAILED" "exit=$rc line=$failed_line command=$failed_command"
+  error "Command failed (exit $rc) at line $failed_line: $failed_command. See ${SERVERCTL_LOG_FILE}."
   exit "$rc"
 }
 trap on_error ERR
