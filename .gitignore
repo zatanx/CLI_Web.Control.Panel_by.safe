@@ -5,6 +5,9 @@
 *.log
 *.tmp
 
+# Shipped service configuration
+!etc/fail2ban/jail.d/serverctl.local
+
 # Server-generated state and secrets
 /var/
 /runtime/

@@ -1,0 +1,18 @@
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+banaction = ufw
+
+[sshd]
+enabled = true
+backend = systemd
+
+[nginx-http-auth]
+enabled = true
+
+[nginx-limit-req]
+enabled = true
+filter = nginx-limit-req
+logpath = /var/log/nginx/error.log
+          /var/www/*/logs/error.log
