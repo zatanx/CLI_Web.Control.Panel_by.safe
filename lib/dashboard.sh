@@ -245,16 +245,21 @@ EOF
 
 dashboard_install() {
   require_root
-  local domain=${1:-} dashboard_user=admin password_hash='' password readback php_socket cert_root local_mode=no dashboard_ssl=yes dashboard_port=443
+  local domain=${1:-} dashboard_user=admin user_supplied=0 requested_user='' password_hash='' password readback php_socket cert_root local_mode=no dashboard_ssl=yes dashboard_port=443
   [[ -n "$domain" ]] || die 'Usage: serverctl dashboard install DOMAIN [--user USER] [--password-hash HASH]' "$EXIT_INVALID_ARGUMENT"
   shift || true; domain=${domain,,}; dashboard_validate_name "$domain" || die 'Invalid dashboard domain, localhost, IPv4 address, or dashboard.IP hostname.' "$EXIT_VALIDATION"
   while (($#)); do
     case "$1" in
-      --user) (($# >= 2)) || die '--user requires a value.' "$EXIT_INVALID_ARGUMENT"; dashboard_user=$2; shift 2 ;;
+      --user) (($# >= 2)) || die '--user requires a value.' "$EXIT_INVALID_ARGUMENT"; dashboard_user=$2; user_supplied=1; shift 2 ;;
       --password-hash) (($# >= 2)) || die '--password-hash requires a value.' "$EXIT_INVALID_ARGUMENT"; password_hash=$2; shift 2 ;;
       *) die "Unknown dashboard install argument: $1" "$EXIT_INVALID_ARGUMENT" ;;
     esac
   done
+  if ((user_supplied == 0)) && [[ "$SERVERCTL_TEST_MODE" != 1 && -t 0 ]]; then
+    printf 'Dashboard username [%s]: ' "$dashboard_user"
+    read -r requested_user || true
+    [[ -n "$requested_user" ]] && dashboard_user=$requested_user
+  fi
   [[ "$dashboard_user" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || die 'Invalid dashboard username.' "$EXIT_VALIDATION"
   [[ -d "$DASHBOARD_INSTALL_ROOT/public" ]] || die 'Dashboard files are not installed.' "$EXIT_SYSTEM"
   if dashboard_is_local_name "$domain"; then

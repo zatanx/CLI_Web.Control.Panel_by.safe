@@ -107,6 +107,12 @@ sudo serverctl dashboard install dashboard.example.com
 sudo serverctl dashboard install 192.168.2.66
 ```
 
+ระหว่างติดตั้งระบบจะถาม Dashboard username และ password หากต้องการกำหนดผ่านคำสั่งโดยตรง:
+
+```bash
+sudo serverctl dashboard install 192.168.2.66 --user myadmin
+```
+
 หากต้องการแยก URL ของ Dashboard ออกจากเว็บไซต์ ให้เพิ่มรายการนี้ในไฟล์ `hosts` ของเครื่องลูกข่ายทุกเครื่อง:
 
 ```text
