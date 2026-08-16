@@ -1,6 +1,6 @@
-# Security
+# Security ( English )
 
-Documentation version: v1.1.8 (2026-08-16)
+Documentation version: v1.1.9 (2026-08-16)
 
 ## Defaults
 
@@ -31,9 +31,9 @@ Review blocked addresses in the Dashboard `Fail2Ban` menu or with `sudo serverct
 
 ---
 
-# ความปลอดภัย
+# ความปลอดภัย ( ไทย )
 
-เวอร์ชันเอกสาร: v1.1.8 (16-08-2026)
+เวอร์ชันเอกสาร: v1.1.9 (16-08-2026)
 
 ## ค่าเริ่มต้น
 
