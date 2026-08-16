@@ -115,7 +115,7 @@ dashboard_update_counts() {
 
 dashboard_snapshot() {
   require_root
-  local hostname_value os kernel uptime_value load cpu memory_total memory_available ram disk reboot
+  local hostname_value os kernel uptime_value load cpu memory_total memory_available memory_used ram disk disk_total_bytes disk_used_bytes reboot
   local websites=0 https=0 expiring=0 updates security_updates security_output security_score
   local bot_provider bot_site_key bot_secret bot_enabled bot_secret_configured
   local version php_state
@@ -127,8 +127,16 @@ dashboard_snapshot() {
   cpu=$(cpu_usage 2>/dev/null || printf 0)
   memory_total=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || printf 0)
   memory_available=$(awk '/MemAvailable/ {print $2}' /proc/meminfo 2>/dev/null || printf 0)
-  if [[ "$memory_total" =~ ^[0-9]+$ && "$memory_total" -gt 0 ]]; then ram=$((100 * (memory_total - memory_available) / memory_total)); else ram=0; fi
-  disk=$(df -P / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}' || printf 0)
+  memory_used=0
+  if [[ "$memory_total" =~ ^[0-9]+$ && "$memory_available" =~ ^[0-9]+$ && "$memory_total" -gt 0 ]]; then
+    memory_used=$((memory_total - memory_available)); ((memory_used < 0)) && memory_used=0
+    ram=$((100 * memory_used / memory_total))
+  else
+    ram=0
+  fi
+  read -r disk_total_bytes disk_used_bytes disk < <(df -P -B1 / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $2, $3, $5}' || printf '0 0 0')
+  [[ "$disk_total_bytes" =~ ^[0-9]+$ ]] || disk_total_bytes=0
+  [[ "$disk_used_bytes" =~ ^[0-9]+$ ]] || disk_used_bytes=0
   [[ "$disk" =~ ^[0-9]+$ ]] || disk=0
   [[ -f "$(root_path /var/run/reboot-required)" ]] && reboot=yes || reboot=no
   read -r updates security_updates < <(dashboard_update_counts)
@@ -156,7 +164,10 @@ dashboard_snapshot() {
   printf '{"status":"success","data":{'
   printf '"server":{"hostname":%s,"os":%s,"kernel":%s,"uptime":%s,"load":%s,' \
     "$(dashboard_json_string "$hostname_value")" "$(dashboard_json_string "$os")" "$(dashboard_json_string "$kernel")" "$(dashboard_json_string "$uptime_value")" "$(dashboard_json_string "$load")"
-  printf '"cpu":%s,"ram":%s,"disk":%s},' "$(dashboard_json_number "$cpu")" "$(dashboard_json_number "$ram")" "$(dashboard_json_number "$disk")"
+  printf '"cpu":%s,"ram":%s,"disk":%s,"ram_used_kb":%s,"ram_total_kb":%s,"disk_used_bytes":%s,"disk_total_bytes":%s},' \
+    "$(dashboard_json_number "$cpu")" "$(dashboard_json_number "$ram")" "$(dashboard_json_number "$disk")" \
+    "$(dashboard_json_number "$memory_used")" "$(dashboard_json_number "$memory_total")" \
+    "$(dashboard_json_number "$disk_used_bytes")" "$(dashboard_json_number "$disk_total_bytes")"
   printf '"services":{"nginx":%s,"php_fpm":%s,"mariadb":%s,"fail2ban":%s,"firewall":%s},' \
     "$(dashboard_json_string "$(dashboard_service_state nginx)")" "$(dashboard_json_string "$php_state")" \
     "$(dashboard_json_string "$(dashboard_service_state mariadb)")" "$(dashboard_json_string "$(dashboard_service_state fail2ban)")" \

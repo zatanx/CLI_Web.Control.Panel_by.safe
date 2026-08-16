@@ -7,6 +7,13 @@
     const qs = (selector, root = document) => root.querySelector(selector);
     const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
     const escapeText = (value) => String(value ?? '');
+    const formatBytes = (bytes) => {
+        let value = Number(bytes);
+        if (!Number.isFinite(value) || value <= 0) return '—';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB']; let index = 0;
+        while (value >= 1024 && index < units.length - 1) { value /= 1024; index += 1; }
+        return `${value >= 10 || index === 0 ? Math.round(value) : value.toFixed(1)} ${units[index]}`;
+    };
     const confirmModal = qs('[data-confirm-modal]');
     const confirmMessage = qs('[data-confirm-message]', confirmModal || document);
     const confirmAccept = qs('[data-confirm-accept]', confirmModal || document);
@@ -120,6 +127,10 @@
         setText('[data-value="cpu"]', `${server.cpu ?? 0}%`);
         setText('[data-value="ram"]', `${server.ram ?? 0}%`);
         setText('[data-value="disk"]', `${server.disk ?? 0}%`);
+        const ramCapacity = qs('[data-value="ram"]')?.closest('.metric-card')?.querySelector('small');
+        const diskCapacity = qs('[data-value="disk"]')?.closest('.metric-card')?.querySelector('small');
+        if (ramCapacity) ramCapacity.textContent = `Used ${formatBytes(Number(server.ram_used_kb || 0) * 1024)} / ${formatBytes(Number(server.ram_total_kb || 0) * 1024)}`;
+        if (diskCapacity) diskCapacity.textContent = `Used ${formatBytes(server.disk_used_bytes)} / ${formatBytes(server.disk_total_bytes)}`;
         setText('[data-value="load"]', server.load ?? '0');
         setText('[data-load-status]', Number(server.load) > 2 ? 'Elevated' : 'Normal');
         ['cpu', 'ram', 'disk'].forEach((key) => {

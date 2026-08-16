@@ -19,7 +19,7 @@ assert_true() { local name=$1; shift; if "$@"; then pass "$name"; else fail_test
 assert_false() { local name=$1; shift; if "$@"; then fail_test "$name"; else pass "$name"; fi; }
 assert_file_contains() { local name=$1 file=$2 pattern=$3; if grep -Eq "$pattern" "$file"; then pass "$name"; else fail_test "$name"; fi; }
 
-[[ "$SERVERCTL_VERSION" == 1.1.2 && "$SERVERCTL_RELEASE_DATE" == 2026-08-16 ]] && pass 'serverctl version metadata is defined' || fail_test 'serverctl version metadata is defined'
+[[ "$SERVERCTL_VERSION" == 1.1.3 && "$SERVERCTL_RELEASE_DATE" == 2026-08-16 ]] && pass 'serverctl version metadata is defined' || fail_test 'serverctl version metadata is defined'
 assert_true 'valid apex domain' validate_domain example.com
 assert_true 'valid subdomain' validate_domain erp.company.co.th
 assert_true 'accepts localhost site name' validate_site_name localhost
