@@ -24,20 +24,55 @@
 
     const getPath = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
 
+    const parseApiResponse = async (response, request) => {
+        const raw = await response.text();
+        let data;
+        try {
+            data = raw === '' ? {} : JSON.parse(raw);
+        } catch (error) {
+            console.error('[Dashboard API] Invalid JSON response', {
+                request,
+                status: response.status,
+                statusText: response.statusText,
+                body: raw.slice(0, 2000),
+                error,
+            });
+            throw new Error(`API returned invalid JSON (HTTP ${response.status}).`);
+        }
+        if (!response.ok || data.status === 'error') {
+            console.error('[Dashboard API] Request failed', {
+                request,
+                status: response.status,
+                statusText: response.statusText,
+                response: data,
+            });
+            throw new Error(data.message || `Request failed (HTTP ${response.status}).`);
+        }
+        return data;
+    };
+
     const apiGet = async (resource, params = {}) => {
         const query = new URLSearchParams({ resource, ...params });
-        const response = await fetch(`${apiUrl}?${query}`, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
-        const data = await response.json();
-        if (!response.ok || data.status === 'error') throw new Error(data.message || 'Request failed.');
-        return data;
+        const request = `GET ${apiUrl}?${query}`;
+        try {
+            const response = await fetch(request, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+            return await parseApiResponse(response, request);
+        } catch (error) {
+            console.error('[Dashboard API] GET error', { request, error });
+            throw error;
+        }
     };
 
     const apiPost = async (action, target = '', confirmed = false) => {
         const form = new URLSearchParams({ action, target, confirmed: confirmed ? '1' : '0', csrf_token: csrfToken });
-        const response = await fetch(apiUrl, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form });
-        const data = await response.json();
-        if (!response.ok || data.status === 'error') throw new Error(data.message || 'Action failed.');
-        return data;
+        const request = `POST ${apiUrl}`;
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form });
+            return await parseApiResponse(response, request);
+        } catch (error) {
+            console.error('[Dashboard API] POST error', { request, error });
+            throw error;
+        }
     };
 
     const renderStatus = (data) => {

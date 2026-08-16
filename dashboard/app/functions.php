@@ -77,10 +77,19 @@ function dashboard_json_command(string $operation): array
 {
     $result = dashboard_command($operation);
     if ($result['code'] !== 0) {
-        throw new RuntimeException('Server status is currently unavailable.');
+        $detail = trim((string) $result['stderr']);
+        $detail = preg_replace('/\s+/', ' ', $detail) ?: '';
+        $detail = substr($detail, 0, 1000);
+        error_log(sprintf('[serverctl-dashboard] %s failed with exit code %d: %s', $operation, $result['code'], $detail));
+        $message = 'Server status is currently unavailable.';
+        if ($detail !== '') {
+            $message .= sprintf(' serverctl error: %s', $detail);
+        }
+        throw new RuntimeException($message);
     }
     $decoded = json_decode($result['stdout'], true);
     if (!is_array($decoded)) {
+        error_log(sprintf('[serverctl-dashboard] %s returned invalid JSON: %s', $operation, substr(trim($result['stdout']), 0, 1000)));
         throw new RuntimeException('Server manager returned invalid data.');
     }
     return $decoded;
