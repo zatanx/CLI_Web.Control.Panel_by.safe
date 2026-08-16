@@ -158,7 +158,7 @@
         setText('[data-bot-status]', botStatus);
         const botSecret = qs('[data-bot-secret]');
         if (botSecret && !botSettingsDirty) botSecret.value = '';
-        [botProvider, botSiteKey, botSecret].forEach((element) => { if (element) element.disabled = botProvider?.value === 'none'; });
+        [botSiteKey, botSecret].forEach((element) => { if (element) element.disabled = botProvider?.value === 'none'; });
         Object.entries(server).forEach(([key, value]) => setText(`[data-info="${key}"]`, value));
         const score = Number(data.security?.score || 0);
         const health = qs('[data-health]');
