@@ -16,7 +16,9 @@ function dashboard_security_headers(): void
     header('Referrer-Policy: no-referrer');
     header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
     header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
-    header('Strict-Transport-Security: max-age=31536000');
+    if (!dashboard_is_local_mode() && dashboard_request_is_https()) {
+        header('Strict-Transport-Security: max-age=31536000');
+    }
     header('Cache-Control: no-store');
 }
 
@@ -54,7 +56,10 @@ function dashboard_audit(string $action, string $result, string $target = ''): v
 
 function dashboard_require_https(): void
 {
-    if (($_SERVER['HTTPS'] ?? '') === '' || strtolower((string) $_SERVER['HTTPS']) === 'off') {
+    if (dashboard_is_local_mode()) {
+        return;
+    }
+    if (!dashboard_request_is_https()) {
         http_response_code(400);
         exit('HTTPS is required.');
     }

@@ -92,13 +92,19 @@ sudo serverctl ssl enable example.com --email admin@example.com
 
 ### ไทย
 
-Dashboard จะถูกติดตั้งเฉพาะ source code และปิดการใช้งานไว้เป็นค่าเริ่มต้น หลังจากสร้าง DNS record และมี HTTPS certificate สำหรับ hostname แยกแล้ว ให้เปิดใช้งานด้วย:
+Dashboard จะถูกติดตั้งเฉพาะ source code และปิดการใช้งานไว้เป็นค่าเริ่มต้น สำหรับระบบ Internet ให้สร้าง DNS record และมี HTTPS certificate ส่วนระบบปิดภายใน LAN สามารถใช้ localhost หรือ IP address ผ่าน HTTP ได้:
 
-The Dashboard source code is installed but remains disabled by default. After creating a DNS record and obtaining an HTTPS certificate for a dedicated hostname, enable it with:
+The Dashboard source code is installed but remains disabled by default. Public deployments require a dedicated hostname and HTTPS certificate; localhost and LAN IP deployments can use HTTP:
 
 ```bash
 sudo serverctl dashboard status
 sudo serverctl dashboard install dashboard.example.com
+```
+
+สำหรับ localhost หรือ IP address ใช้ชื่อโดยตรง ไม่ต้องเติม `dashboard.`:
+
+```bash
+sudo serverctl dashboard install 192.168.2.66
 ```
 
 ดูรายละเอียดด้านความปลอดภัยและคำสั่งถอนการติดตั้งได้ที่ [DASHBOARD.md](DASHBOARD.md)

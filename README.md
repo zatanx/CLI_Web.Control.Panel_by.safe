@@ -14,7 +14,7 @@
 - Confirmation for destructive actions; `--yes` for explicit automation
 - Audit every CLI action without logging passwords, tokens, or private keys
 - Install only required packages; expose only SSH, HTTP, and HTTPS
-- Keep the Dashboard disabled until an administrator supplies a domain and HTTPS certificate
+- Keep the Dashboard disabled until an administrator supplies a domain, localhost, or LAN IP; public deployments require an HTTPS certificate
 
 ## Quick start
 

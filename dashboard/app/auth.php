@@ -15,7 +15,7 @@ function dashboard_session_start(): void
     session_set_cookie_params([
         'lifetime' => 0,
         'path' => '/',
-        'secure' => true,
+        'secure' => dashboard_request_is_https(),
         'httponly' => true,
         'samesite' => 'Strict',
     ]);
@@ -146,7 +146,7 @@ function dashboard_logout(): void
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'] ?? '', true, true);
+        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'] ?? '', dashboard_request_is_https(), true);
     }
     session_destroy();
 }

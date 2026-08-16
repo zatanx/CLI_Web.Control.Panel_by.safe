@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input id="password" name="password" type="password" required autocomplete="current-password">
         <button class="button button-primary button-wide" type="submit">Log in</button>
     </form>
-    <p class="login-footnote">HTTPS, protected sessions and administrative audit logging are enabled.</p>
+    <p class="login-footnote">Protected sessions and administrative audit logging are enabled.</p>
 </main>
 </body>
 </html>

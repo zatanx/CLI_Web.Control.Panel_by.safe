@@ -35,6 +35,16 @@ function dashboard_is_configured(): bool
         && dashboard_config('DASHBOARD_PASSWORD_HASH') !== '';
 }
 
+function dashboard_is_local_mode(): bool
+{
+    return strtolower((string) dashboard_config('DASHBOARD_LOCAL_ONLY', 'no')) === 'yes';
+}
+
+function dashboard_request_is_https(): bool
+{
+    return isset($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== '' && strtolower((string) $_SERVER['HTTPS']) !== 'off';
+}
+
 function dashboard_state_dir(): string
 {
     return '/var/lib/serverctl/dashboard';

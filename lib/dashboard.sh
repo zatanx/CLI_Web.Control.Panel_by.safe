@@ -155,7 +155,35 @@ dashboard_status() {
 }
 
 dashboard_render_nginx() {
-  local domain=$1 php_socket=$2 cert_root=$3
+  local domain=$1 php_socket=$2 cert_root=$3 local_mode=${4:-no}
+  if [[ "$local_mode" == yes ]]; then
+    atomic_write "$DASHBOARD_NGINX_AVAILABLE" 0644 root root <<EOF
+# Managed by serverctl. Manual changes may be overwritten.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $domain;
+    root $DASHBOARD_INSTALL_ROOT/public;
+    index index.php;
+    autoindex off;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'" always;
+    location / { try_files \$uri \$uri/ /index.php?\$query_string; }
+    location ^~ /api/ { try_files \$uri =404; }
+    location ~ ^/(app|views|config) { deny all; }
+    location ~ \.php$ {
+        try_files \$uri =404;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_pass unix:$php_socket;
+    }
+}
+EOF
+    return 0
+  fi
   atomic_write "$DASHBOARD_NGINX_AVAILABLE" 0644 root root <<EOF
 # Managed by serverctl. Manual changes may be overwritten.
 server {
@@ -199,9 +227,9 @@ EOF
 
 dashboard_install() {
   require_root
-  local domain=${1:-} dashboard_user=admin password_hash='' password readback php_socket cert_root
+  local domain=${1:-} dashboard_user=admin password_hash='' password readback php_socket cert_root local_mode=no dashboard_ssl=yes
   [[ -n "$domain" ]] || die 'Usage: serverctl dashboard install DOMAIN [--user USER] [--password-hash HASH]' "$EXIT_INVALID_ARGUMENT"
-  shift || true; validate_domain "$domain" || die 'Invalid dashboard domain.' "$EXIT_VALIDATION"
+  shift || true; domain=${domain,,}; validate_site_name "$domain" || die 'Invalid dashboard domain, localhost, or IPv4 address.' "$EXIT_VALIDATION"
   while (($#)); do
     case "$1" in
       --user) (($# >= 2)) || die '--user requires a value.' "$EXIT_INVALID_ARGUMENT"; dashboard_user=$2; shift 2 ;;
@@ -211,8 +239,12 @@ dashboard_install() {
   done
   [[ "$dashboard_user" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || die 'Invalid dashboard username.' "$EXIT_VALIDATION"
   [[ -d "$DASHBOARD_INSTALL_ROOT/public" ]] || die 'Dashboard files are not installed.' "$EXIT_SYSTEM"
-  cert_root="$(root_path /etc/letsencrypt/live)/$domain"
-  [[ -s "$cert_root/fullchain.pem" && -s "$cert_root/privkey.pem" ]] || die "Dashboard requires an existing HTTPS certificate at $cert_root." "$EXIT_VALIDATION"
+  if is_local_site "$domain"; then
+    local_mode=yes; dashboard_ssl=no; cert_root=''
+  else
+    cert_root="$(root_path /etc/letsencrypt/live)/$domain"
+    [[ -s "$cert_root/fullchain.pem" && -s "$cert_root/privkey.pem" ]] || die "Dashboard requires an existing HTTPS certificate at $cert_root." "$EXIT_VALIDATION"
+  fi
   if [[ -z "$password_hash" ]]; then
     has_command php || die 'PHP CLI is required to create a dashboard password hash.' "$EXIT_SYSTEM"
     printf 'Dashboard password: '; read -r -s password; printf '\nConfirm password: '; read -r -s readback; printf '\n'
@@ -230,13 +262,15 @@ DASHBOARD_USER=$dashboard_user
 DASHBOARD_PASSWORD_HASH=$password_hash
 DASHBOARD_READ_ONLY=0
 DASHBOARD_ENABLED=1
+DASHBOARD_LOCAL_ONLY=$local_mode
+DASHBOARD_SSL=$dashboard_ssl
 EOF
-  dashboard_render_nginx "$domain" "/run/php/php${DEFAULT_PHP_VERSION}-fpm.sock" "$cert_root"
+  dashboard_render_nginx "$domain" "/run/php/php${DEFAULT_PHP_VERSION}-fpm.sock" "$cert_root" "$local_mode"
   ln -sfn "$DASHBOARD_NGINX_AVAILABLE" "$DASHBOARD_NGINX_ENABLED"
   validate_nginx || { rm -f -- "$DASHBOARD_NGINX_ENABLED"; die 'Nginx rejected the dashboard configuration.' "$EXIT_VALIDATION"; }
   run_cmd systemctl reload nginx
   audit_event 'dashboard install' SUCCESS "domain=$domain"
-  ok "Dashboard enabled: https://$domain/"
+  if [[ "$local_mode" == yes ]]; then ok "Dashboard enabled: http://$domain/"; else ok "Dashboard enabled: https://$domain/"; fi
 }
 
 dashboard_uninstall() {
