@@ -2,4 +2,4 @@
 %serverctl-admin ALL=(root) /usr/local/bin/serverctl
 # The PHP-FPM Dashboard may call only the structured read endpoints and the
 # validated dashboard action dispatcher. The dispatcher has its own whitelist.
-www-data ALL=(root) NOPASSWD: /usr/local/bin/serverctl dashboard snapshot, /usr/local/bin/serverctl dashboard websites, /usr/local/bin/serverctl dashboard logs *, /usr/local/bin/serverctl --yes dashboard action *
+www-data ALL=(root) NOPASSWD: /usr/local/bin/serverctl dashboard snapshot, /usr/local/bin/serverctl dashboard websites, /usr/local/bin/serverctl dashboard fail2ban, /usr/local/bin/serverctl dashboard logs *, /usr/local/bin/serverctl --yes dashboard action *
