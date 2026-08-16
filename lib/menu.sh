@@ -3,7 +3,7 @@
 menu_header() {
   clear 2>/dev/null || true
   printf '%s\n' '========================================' 'WEB SERVER MANAGER' '=================='
-  printf 'Server : %s\nOS     : %s\nIP     : %s\n\n' "$(hostname 2>/dev/null)" "$(. /etc/os-release 2>/dev/null; printf '%s' "${PRETTY_NAME:-unknown}")" "$(hostname -I 2>/dev/null | awk '{print $1}')"
+  printf 'Version: v%s (%s)\nServer : %s\nOS     : %s\nIP     : %s\n\n' "$SERVERCTL_VERSION" "$SERVERCTL_RELEASE_DATE" "$(hostname 2>/dev/null)" "$(. /etc/os-release 2>/dev/null; printf '%s' "${PRETTY_NAME:-unknown}")" "$(hostname -I 2>/dev/null | awk '{print $1}')"
 }
 
 menu_pause() { printf '\nPress Enter to continue...'; read -r _; }

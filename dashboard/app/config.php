@@ -4,7 +4,7 @@ declare(strict_types=1);
 const DASHBOARD_APP_ROOT = __DIR__;
 const DASHBOARD_ROOT = __DIR__ . '/..';
 const DASHBOARD_PUBLIC_ROOT = DASHBOARD_ROOT . '/public';
-const SERVERCTL_VERSION = '1.0.0';
+const SERVERCTL_VERSION = '1.0.1';
 const SERVERCTL_RELEASE_DATE = '2026-08-16';
 
 $dashboard_config_file = getenv('SERVERCTL_DASHBOARD_CONFIG') ?: '/etc/serverctl/dashboard.conf';
