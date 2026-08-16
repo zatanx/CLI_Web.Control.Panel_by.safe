@@ -103,6 +103,10 @@ td:first-child, th:first-child { padding-left: 0; }
 .info-list dt { color: var(--muted); }
 .info-list dd { float: right; font-weight: 600; max-width: 65%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .info-list::after { content: ""; display: block; clear: both; }
+.bot-settings { max-width: 620px; }
+.bot-settings label { margin-top: 18px; }
+.bot-settings .detail-row { margin-bottom: 20px; }
+.bot-settings-note { margin-top: 14px; }
 .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .large-status { color: var(--muted); font-size: 22px; font-weight: 700; margin: 0 0 20px; text-transform: uppercase; }
 .button { border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700; padding: 10px 14px; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
@@ -133,6 +137,7 @@ body.modal-open { overflow: hidden; }
 .login-card { width: min(100%, 420px); padding: 40px; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 24px 60px rgba(29,53,87,.1); }
 .login-card .brand-mark { margin-bottom: 26px; }
 .login-card h1 { font-size: 25px; margin: 7px 0; letter-spacing: -.03em; }
+.login-bot-error { margin-top: 16px; }
 .login-card label { margin-top: 22px; }
 .login-footnote { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 25px 0 0; text-align: center; }
 

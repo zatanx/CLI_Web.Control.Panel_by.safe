@@ -19,7 +19,7 @@ assert_true() { local name=$1; shift; if "$@"; then pass "$name"; else fail_test
 assert_false() { local name=$1; shift; if "$@"; then fail_test "$name"; else pass "$name"; fi; }
 assert_file_contains() { local name=$1 file=$2 pattern=$3; if grep -Eq "$pattern" "$file"; then pass "$name"; else fail_test "$name"; fi; }
 
-[[ "$SERVERCTL_VERSION" == 1.0.6 && "$SERVERCTL_RELEASE_DATE" == 2026-08-16 ]] && pass 'serverctl version metadata is defined' || fail_test 'serverctl version metadata is defined'
+[[ "$SERVERCTL_VERSION" == 1.1.0 && "$SERVERCTL_RELEASE_DATE" == 2026-08-16 ]] && pass 'serverctl version metadata is defined' || fail_test 'serverctl version metadata is defined'
 assert_true 'valid apex domain' validate_domain example.com
 assert_true 'valid subdomain' validate_domain erp.company.co.th
 assert_true 'accepts localhost site name' validate_site_name localhost
@@ -28,6 +28,9 @@ assert_false 'rejects IPv4 as public domain' validate_domain 192.168.1.50
 assert_true 'recognizes private site name' is_local_site 192.168.1.50
 assert_true 'accepts local dashboard IP' dashboard_validate_name 192.168.1.50
 assert_false 'rejects separate dashboard IP hostname' dashboard_validate_name dashboard.192.168.1.50
+assert_true 'accepts bot protection key value' dashboard_validate_bot_value site_key_123
+assert_false 'rejects bot protection newline' dashboard_validate_bot_value $'bad\nvalue'
+assert_false 'rejects bot protection config delimiter' dashboard_validate_bot_value 'bad=value'
 dashboard_render_nginx 192.168.1.50 /run/php/php8.3-fpm.sock '' yes 8088
 assert_file_contains 'local dashboard listens on port 8088' "$DASHBOARD_NGINX_AVAILABLE" 'listen 8088;'
 dashboard_render_nginx example.com /run/php/php8.3-fpm.sock /etc/letsencrypt/live/example.com no 8088

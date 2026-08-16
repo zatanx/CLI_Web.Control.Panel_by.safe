@@ -13,6 +13,7 @@
     const confirmCancel = qs('[data-confirm-cancel]', confirmModal || document);
     let confirmResolve = null;
     let previousFocus = null;
+    let botSettingsDirty = false;
 
     const showToast = (message, isError = false) => {
         const toast = qs('[data-toast]');
@@ -101,8 +102,8 @@
         }
     };
 
-    const apiPost = async (action, target = '', confirmed = false) => {
-        const form = new URLSearchParams({ action, target, confirmed: confirmed ? '1' : '0', csrf_token: csrfToken });
+    const apiPost = async (action, target = '', confirmed = false, extra = {}) => {
+        const form = new URLSearchParams({ action, target, confirmed: confirmed ? '1' : '0', csrf_token: csrfToken, ...extra });
         const request = `POST ${apiUrl}`;
         try {
             const response = await fetch(apiUrl, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form });
@@ -134,6 +135,18 @@
         });
         qsa('[data-summary]').forEach((element) => { element.textContent = escapeText(getPath(data, element.dataset.summary)); });
         setText('[data-php-version]', data.php?.default_version || '—');
+        const bot = data.bot_protection || {};
+        const botProvider = qs('[data-bot-provider]');
+        const botSiteKey = qs('[data-bot-site-key]');
+        if (!botSettingsDirty) {
+            if (botProvider) botProvider.value = bot.provider || 'none';
+            if (botSiteKey) botSiteKey.value = bot.site_key || '';
+        }
+        const botLabels = { none: 'Disabled', recaptcha_v3: 'Google reCAPTCHA v3', turnstile: 'Cloudflare Turnstile' };
+        setText('[data-bot-status]', bot.enabled === 'yes' ? `${botLabels[bot.provider] || bot.provider} enabled` : 'Bot protection disabled');
+        const botSecret = qs('[data-bot-secret]');
+        if (botSecret && !botSettingsDirty) botSecret.value = '';
+        [botProvider, botSiteKey, botSecret].forEach((element) => { if (element) element.disabled = botProvider?.value === 'none'; });
         Object.entries(server).forEach(([key, value]) => setText(`[data-info="${key}"]`, value));
         const score = Number(data.security?.score || 0);
         const health = qs('[data-health]');
@@ -177,6 +190,34 @@
     qsa('[data-section]').forEach((link) => link.addEventListener('click', (event) => {
         event.preventDefault(); const section = link.dataset.section; qsa('[data-section]').forEach((item) => item.classList.toggle('is-active', item === link)); qsa('[data-panel]').forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === section)); qs('#page-title').textContent = section === 'dashboard' ? 'Dashboard Overview' : section.replace('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); qs('#sidebar')?.classList.remove('open'); if (section === 'websites') loadWebsites();
     }));
+    const botProvider = qs('[data-bot-provider]');
+    const botSiteKey = qs('[data-bot-site-key]');
+    const botSecret = qs('[data-bot-secret]');
+    const botSave = qs('[data-bot-save]');
+    const syncBotFields = () => {
+        const disabled = botProvider?.value === 'none';
+        [botSiteKey, botSecret].forEach((element) => { if (element) element.disabled = disabled; });
+    };
+    [botProvider, botSiteKey, botSecret].forEach((element) => element?.addEventListener('input', () => { botSettingsDirty = true; syncBotFields(); }));
+    botProvider?.addEventListener('change', () => { botSettingsDirty = true; syncBotFields(); });
+    botSave?.addEventListener('click', async () => {
+        const provider = botProvider?.value || 'none';
+        const siteKey = provider === 'none' ? '' : (botSiteKey?.value || '').trim();
+        const secret = provider === 'none' ? '' : (botSecret?.value || '');
+        if (provider !== 'none' && (!siteKey || !secret)) {
+            showToast('Enter both the site key and secret key.', true);
+            return;
+        }
+        if (!(await showConfirmModal(botSave.dataset.confirm || 'Save Bot Protection settings?'))) return;
+        botSave.disabled = true;
+        try {
+            await apiPost('bot-protection-set', '', true, { provider, site_key: siteKey, secret });
+            showToast('Bot Protection settings saved.');
+            botSettingsDirty = false;
+            await loadSnapshot();
+        } catch (error) { showToast(error.message, true); }
+        finally { botSave.disabled = false; }
+    });
     qsa('[data-action]').forEach((button) => button.addEventListener('click', async () => {
         const message = button.dataset.confirm || 'Continue with this administrative action?';
         if (!(await showConfirmModal(message))) return;

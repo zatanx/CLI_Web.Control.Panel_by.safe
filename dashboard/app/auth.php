@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/bot.php';
 
 function dashboard_session_start(): void
 {
@@ -76,12 +77,17 @@ function dashboard_record_login_success(string $ip): void
     dashboard_save_rate_data($data);
 }
 
-function dashboard_login(string $username, string $password): bool
+function dashboard_login(string $username, string $password, string $bot_token = ''): bool
 {
     dashboard_session_start();
     $ip = dashboard_client_ip();
     if (!dashboard_is_configured() || !dashboard_login_allowed($ip)) {
         dashboard_audit('LOGIN', 'BLOCKED', $username);
+        return false;
+    }
+    if (!dashboard_bot_verify_login($bot_token)) {
+        dashboard_record_login_failure($ip);
+        dashboard_audit('LOGIN', 'BOT_FAILED');
         return false;
     }
     $configured_user = (string) dashboard_config('DASHBOARD_USER', '');

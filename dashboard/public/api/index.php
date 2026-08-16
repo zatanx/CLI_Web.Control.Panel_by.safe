@@ -49,15 +49,20 @@ if (dashboard_config('DASHBOARD_READ_ONLY', '0') === '1') {
 
 $action = (string) ($_POST['action'] ?? '');
 $target = (string) ($_POST['target'] ?? '');
+$provider = (string) ($_POST['provider'] ?? '');
+$site_key = (string) ($_POST['site_key'] ?? '');
+$secret = (string) ($_POST['secret'] ?? '');
 $requires_confirmation = in_array($action, [
     'nginx-restart', 'firewall-reload', 'backup-all', 'update-check',
-    'fail2ban-unban', 'backup-restore', 'website-remove', 'database-remove',
+    'fail2ban-unban', 'backup-restore', 'website-remove', 'database-remove', 'bot-protection-set',
 ], true);
 if ($requires_confirmation && (string) ($_POST['confirmed'] ?? '') !== '1') {
     dashboard_json_response(['status' => 'error', 'message' => 'Confirmation is required for this action.'], 409);
 }
 
-$arguments = $target === '' ? [$action] : [$action, $target];
+$arguments = $action === 'bot-protection-set'
+    ? [$action, $provider, $site_key, '--secret', $secret]
+    : ($target === '' ? [$action] : [$action, $target]);
 try {
     $result = dashboard_command('action', $arguments, true);
     $success = $result['code'] === 0;

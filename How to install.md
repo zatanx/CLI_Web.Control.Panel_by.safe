@@ -147,6 +147,17 @@ sudo serverctl firewall add 8088 tcp 192.168.2.0/24
 
 See [DASHBOARD.md](DASHBOARD.md) for the Dashboard security model and uninstall instructions.
 
+### ตั้งค่า Bot Protection สำหรับหน้า Login
+
+ใน Dashboard ให้เปิดเมนู `Bot Protection` แล้วเลือก Service ที่ต้องการ:
+
+- `Google reCAPTCHA v3` ใช้ Site Key และ Secret Key จาก Google reCAPTCHA
+- `Cloudflare Turnstile` ใช้ Site Key และ Secret Key จาก Cloudflare Turnstile
+
+กรอก Site Key และ Secret Key แล้วกด `Save Bot Protection` ระบบจะตรวจสอบ token ฝั่ง server ก่อนอนุญาตให้ Login และจะไม่แสดง Secret Key กลับใน Dashboard หากไม่ต้องการใช้ ให้เลือก `Disabled` แล้วบันทึก
+
+หมายเหตุ: Bot Protection ต้องให้ Server เชื่อมต่อ HTTPS ออกไปยังบริการของ Google หรือ Cloudflare เพื่อยืนยัน token หากระบบปิดไม่มี Internet ให้เลือก `Disabled`
+
 ### เข้าเมนูหลัก 
 ```bash
 sudo serverctl

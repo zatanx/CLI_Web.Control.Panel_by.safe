@@ -23,6 +23,73 @@ dashboard_json_number() {
   [[ "${1:-}" =~ ^-?[0-9]+$ ]] && printf '%s' "$1" || printf '0'
 }
 
+dashboard_config_set_value() {
+  local key=$1 value=$2 temporary line found=0
+  [[ -f "$DASHBOARD_CONFIG_FILE" ]] || die 'Dashboard configuration is not present.' "$EXIT_VALIDATION"
+  temporary=$(mktemp "$(dirname "$DASHBOARD_CONFIG_FILE")/.dashboard-config.XXXXXX")
+  while IFS= read -r line; do
+    if [[ "$line" == "$key="* ]]; then
+      printf '%s=%s\n' "$key" "$value" >> "$temporary"
+      found=1
+    else
+      printf '%s\n' "$line" >> "$temporary"
+    fi
+  done < "$DASHBOARD_CONFIG_FILE"
+  ((found)) || printf '%s=%s\n' "$key" "$value" >> "$temporary"
+  chmod 0640 "$temporary"
+  if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then chown root:www-data "$temporary"; fi
+  mv -f -- "$temporary" "$DASHBOARD_CONFIG_FILE"
+}
+
+dashboard_validate_bot_value() {
+  local value=${1:-}
+  [[ ${#value} -le 512 && "$value" != *$'\n'* && "$value" != *$'\r'* && "$value" != *'='* ]]
+}
+
+dashboard_bot_protection_set() {
+  require_root
+  local provider=${1:-} site_key=${2:-} secret=${3:-}
+  (($# == 3)) || die 'Usage: dashboard bot-protection set PROVIDER SITE_KEY --secret SECRET' "$EXIT_INVALID_ARGUMENT"
+  [[ "$provider" == none || "$provider" == recaptcha_v3 || "$provider" == turnstile ]] || die 'Provider must be none, recaptcha_v3, or turnstile.' "$EXIT_VALIDATION"
+  dashboard_validate_bot_value "$site_key" || die 'Invalid bot-protection site key.' "$EXIT_VALIDATION"
+  dashboard_validate_bot_value "$secret" || die 'Invalid bot-protection secret.' "$EXIT_VALIDATION"
+  if [[ "$provider" == none ]]; then
+    site_key=''; secret=''
+  else
+    [[ -n "$site_key" && -n "$secret" ]] || die 'A site key and secret are required when bot protection is enabled.' "$EXIT_VALIDATION"
+  fi
+  dashboard_config_set_value DASHBOARD_BOT_PROVIDER "$provider"
+  dashboard_config_set_value DASHBOARD_BOT_SITE_KEY "$site_key"
+  dashboard_config_set_value DASHBOARD_BOT_SECRET "$secret"
+  local domain local_mode dashboard_port cert_root
+  domain=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_DOMAIN || true)
+  local_mode=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_LOCAL_ONLY || printf no)
+  dashboard_port=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_PORT || printf 8088)
+  if [[ "$local_mode" == yes ]]; then cert_root=''; else cert_root="$(root_path /etc/letsencrypt/live)/$domain"; fi
+  dashboard_render_nginx "$domain" "/run/php/php${DEFAULT_PHP_VERSION}-fpm.sock" "$cert_root" "$local_mode" "$dashboard_port"
+  validate_nginx || die 'Nginx rejected the Dashboard bot-protection configuration.' "$EXIT_VALIDATION"
+  run_cmd systemctl reload nginx
+  audit_event 'dashboard bot protection set' SUCCESS "provider=$provider"
+  ok "Dashboard bot protection: $provider"
+}
+
+dashboard_bot_protection() {
+  local sub=${1:-status} configured_secret
+  shift || true
+  case "$sub" in
+    status)
+      (($# == 0)) || die 'dashboard bot-protection status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"
+      configured_secret=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_BOT_SECRET || printf '')
+      printf 'BOT PROTECTION\n================\nProvider       : %s\nSite key       : %s\nSecret         : %s\n' \
+        "$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_BOT_PROVIDER || printf none)" \
+        "$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_BOT_SITE_KEY || printf '')" \
+        "$([[ -n "$configured_secret" ]] && printf configured || printf not-configured)"
+      ;;
+    set) (($# == 4 && "$3" == --secret)) || die 'Usage: dashboard bot-protection set PROVIDER SITE_KEY --secret SECRET' "$EXIT_INVALID_ARGUMENT"; dashboard_bot_protection_set "$1" "$2" "$4" ;;
+    *) die 'Usage: dashboard bot-protection <status|set PROVIDER SITE_KEY --secret SECRET>' "$EXIT_INVALID_ARGUMENT" ;;
+  esac
+}
+
 dashboard_service_state() {
   if service_is_active "$1"; then printf 'running'; else printf 'stopped'; fi
 }
@@ -50,6 +117,7 @@ dashboard_snapshot() {
   require_root
   local hostname_value os kernel uptime_value load cpu memory_total memory_available ram disk reboot
   local websites=0 https=0 expiring=0 updates security_updates security_output security_score
+  local bot_provider bot_site_key bot_secret bot_enabled bot_secret_configured
   local version php_state
   hostname_value=$(hostname -f 2>/dev/null || hostname 2>/dev/null || printf unknown)
   os=$(. /etc/os-release 2>/dev/null; printf '%s' "${PRETTY_NAME:-unknown}")
@@ -67,6 +135,11 @@ dashboard_snapshot() {
   security_output=$(security_status 2>/dev/null || true)
   security_score=$(sed -n 's/^Security Score: \([0-9][0-9]*\) \/ 100$/\1/p' <<< "$security_output" | head -1)
   security_score=${security_score:-0}
+  bot_provider=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_BOT_PROVIDER || printf none)
+  bot_site_key=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_BOT_SITE_KEY || printf '')
+  bot_secret=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_BOT_SECRET || printf '')
+  [[ "$bot_provider" != none && -n "$bot_secret" ]] && bot_enabled=yes || bot_enabled=no
+  [[ -n "$bot_secret" ]] && bot_secret_configured=yes || bot_secret_configured=no
 
   local record domain ssl days
   shopt -s nullglob
@@ -90,8 +163,10 @@ dashboard_snapshot() {
     "$(dashboard_json_string "$(ufw status 2>/dev/null | grep -q 'Status: active' && printf running || printf stopped)")"
   printf '"websites":{"total":%s,"https":%s,"ssl_expiring":%s},' "$(dashboard_json_number "$websites")" "$(dashboard_json_number "$https")" "$(dashboard_json_number "$expiring")"
   printf '"updates":{"available":%s,"security":%s,"reboot_required":%s},' "$(dashboard_json_number "$updates")" "$(dashboard_json_number "$security_updates")" "$(dashboard_json_string "$reboot")"
-  printf '"security":{"score":%s},"php":{"default_version":%s}}}\n' \
-    "$(dashboard_json_number "$security_score")" "$(dashboard_json_string "$version")"
+  printf '"security":{"score":%s},"php":{"default_version":%s},"bot_protection":{"provider":%s,"enabled":%s,"site_key":%s,"secret_configured":%s}}}\n' \
+    "$(dashboard_json_number "$security_score")" "$(dashboard_json_string "$version")" \
+    "$(dashboard_json_string "$bot_provider")" "$(dashboard_json_string "$bot_enabled")" \
+    "$(dashboard_json_string "$bot_site_key")" "$(dashboard_json_string "$bot_secret_configured")"
 }
 
 dashboard_websites() {
@@ -143,6 +218,7 @@ dashboard_action() {
     website-remove) (($# == 1)) || die 'website-remove requires one domain.' "$EXIT_INVALID_ARGUMENT"; website_remove "$1" ;;
     database-remove) (($# == 1)) || die 'database-remove requires one database name.' "$EXIT_INVALID_ARGUMENT"; database_remove "$1" ;;
     update-check) (($# == 0)) || die 'update-check accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_check ;;
+    bot-protection-set) (($# == 4 && "$3" == --secret)) || die 'bot-protection-set requires PROVIDER SITE_KEY --secret SECRET.' "$EXIT_INVALID_ARGUMENT"; dashboard_bot_protection_set "$1" "$2" "$4" ;;
     *) die 'Unknown or disallowed dashboard action.' "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }
@@ -178,7 +254,7 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'" always;
+    add_header Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://challenges.cloudflare.com; connect-src 'self' https://www.google.com/recaptcha/ https://challenges.cloudflare.com; frame-src 'self' https://www.google.com/recaptcha/ https://challenges.cloudflare.com; img-src 'self' data: https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-ancestors 'none'; base-uri 'self'" always;
     location / { try_files \$uri \$uri/ /index.php?\$query_string; }
     location /api/ { try_files \$uri =404; }
     location ~ ^/(app|views|config) { deny all; }
@@ -210,7 +286,7 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'" always;
+    add_header Content-Security-Policy "default-src 'self'; style-src 'self'; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://challenges.cloudflare.com; connect-src 'self' https://www.google.com/recaptcha/ https://challenges.cloudflare.com; frame-src 'self' https://www.google.com/recaptcha/ https://challenges.cloudflare.com; img-src 'self' data: https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-ancestors 'none'; base-uri 'self'" always;
     location / { try_files \$uri \$uri/ /index.php?\$query_string; }
     location /api/ { try_files \$uri =404; }
     location ~ ^/(app|views|config) { deny all; }
@@ -266,6 +342,10 @@ DASHBOARD_PATH=/
 DASHBOARD_USER=$dashboard_user
 DASHBOARD_PASSWORD_HASH=$password_hash
 DASHBOARD_READ_ONLY=0
+DASHBOARD_BOT_PROVIDER=none
+DASHBOARD_BOT_SITE_KEY=
+DASHBOARD_BOT_SECRET=
+DASHBOARD_BOT_RECAPTCHA_THRESHOLD=0.5
 DASHBOARD_ENABLED=1
 DASHBOARD_LOCAL_ONLY=$local_mode
 DASHBOARD_SSL=$dashboard_ssl
@@ -307,8 +387,9 @@ cmd_dashboard() {
     websites) (($# == 0)) || die 'dashboard websites accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_websites ;;
     logs) dashboard_logs "$@" ;;
     action) dashboard_action "$@" ;;
+    bot-protection) dashboard_bot_protection "$@" ;;
     install) dashboard_install "$@" ;;
     uninstall) dashboard_uninstall "$@" ;;
-    *) die 'Usage: serverctl dashboard <status|snapshot|websites|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
+    *) die 'Usage: serverctl dashboard <status|snapshot|websites|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }

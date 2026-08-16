@@ -68,8 +68,9 @@ Commands:
   fail2ban status|list|ban IP|unban IP
   update serverctl|check|security|all
   update history|health|reboot-status
-  version                              Show serverctl version and release date
+  version                              Show serverctl version
   dashboard status|snapshot|websites
+  dashboard bot-protection status|set PROVIDER SITE_KEY --secret SECRET
   dashboard logs TYPE [LINES] [SEARCH]
   dashboard action ACTION [TARGET]
   dashboard install DOMAIN [--user USER] [--password-hash HASH]

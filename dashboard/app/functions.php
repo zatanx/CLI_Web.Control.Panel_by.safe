@@ -32,6 +32,7 @@ function dashboard_command(string $operation, array $arguments = [], bool $assum
             'backup-restore' => 1,
             'website-remove' => 1,
             'database-remove' => 1,
+            'bot-protection-set' => 4,
         ];
         if (!array_key_exists($action, $allowed) || count($arguments) - 1 !== $allowed[$action]) {
             throw new RuntimeException('Invalid dashboard action.');
@@ -47,6 +48,25 @@ function dashboard_command(string $operation, array $arguments = [], bool $assum
         }
         if ($action === 'backup-restore' && !preg_match('/^serverctl-[A-Za-z0-9_.-]+\.tar\.gz(?:\.gpg)?$/', $arguments[1])) {
             throw new RuntimeException('Invalid backup name.');
+        }
+        if ($action === 'bot-protection-set') {
+            $provider = (string) ($arguments[1] ?? '');
+            $site_key = (string) ($arguments[2] ?? '');
+            $secret_flag = (string) ($arguments[3] ?? '');
+            $secret = (string) ($arguments[4] ?? '');
+            if (!in_array($provider, ['none', 'recaptcha_v3', 'turnstile'], true) || $secret_flag !== '--secret') {
+                throw new RuntimeException('Invalid bot-protection provider.');
+            }
+            if (strlen($site_key) > 512 || strlen($secret) > 512 || preg_match('/[\r\n=]/', $site_key . $secret)) {
+                throw new RuntimeException('Invalid bot-protection key.');
+            }
+            if ($provider === 'none') {
+                if ($site_key !== '' || $secret !== '') {
+                    throw new RuntimeException('Disabled bot protection must not include keys.');
+                }
+            } elseif ($site_key === '' || $secret === '') {
+                throw new RuntimeException('A site key and secret are required.');
+            }
         }
     }
 
