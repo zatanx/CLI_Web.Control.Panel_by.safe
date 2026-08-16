@@ -77,7 +77,7 @@ menu_nginx() {
   while true; do
     state=$(systemctl is-active nginx 2>/dev/null || true); state=${state:-inactive}; version=$(nginx -v 2>&1 | sed 's#nginx version: nginx/##' || printf unknown)
     if nginx -t >/dev/null 2>&1; then config=VALID; else config=INVALID; fi
-    printf '\n========================================\n              NGINX\n========================================\n\nStatus      : %s\nVersion     : %s\nConfig      : %s\n\n----------------------------------------\n\n  1. Nginx Status\n  2. Test Configuration\n  3. Reload Nginx\n  4. Restart Nginx\n  5. Stop Nginx\n  6. Start Nginx\n  7. View Configuration\n  8. Global Settings\n  9. Website Configuration\n 10. Security Settings\n 11. Access Log\n 12. Error Log\n 13. Backup Configuration\n 14. Restore Configuration\n 15. Configuration History\n\n  0. Back\n\n========================================\nSelect option: ' "$state" "$version" "$config"
+    printf '\n========================================\n              NGINX\n========================================\n\nStatus      : %s\nVersion     : %s\nConfig      : %s\n\n----------------------------------------\n\n  1. Nginx Status\n  2. Test Configuration\n  3. Reload Nginx\n  4. Restart Nginx\n  5. Stop Nginx\n  6. Start Nginx\n  7. View Configuration\n  8. Global Settings\n  9. Website Configuration\n 10. Security Settings\n 11. Access Log\n 12. Error Log\n 13. Backup Configuration\n 14. Restore Configuration\n 15. Configuration History\n 16. Manual Edit Configuration\n\n  0. Back\n\n========================================\nSelect option: ' "$state" "$version" "$config"
     read -r choice
     case "$choice" in
       1) menu_exec nginx status; menu_pause ;;
@@ -95,10 +95,25 @@ menu_nginx() {
       13) menu_exec nginx backup; menu_pause ;;
       14) menu_nginx_restore ;;
       15) menu_exec nginx history; menu_pause ;;
+      16) menu_nginx_manual_edit ;;
       0) return ;;
       *) warn 'Invalid option.' ;;
     esac
   done
+}
+
+menu_nginx_manual_edit() {
+  local choice domain file
+  printf '\n========================================\n        MANUAL NGINX EDITOR\n========================================\n\n  1. Main Configuration (nginx.conf)\n  2. Website Configuration\n  3. conf.d Configuration\n  4. Snippet Configuration\n\n  0. Back\n========================================\nSelect option: '
+  read -r choice
+  case "$choice" in
+    1) menu_exec nginx edit main ;;
+    2) website_list; printf '\nWebsite: '; read -r domain; [[ -n "$domain" ]] && menu_exec nginx edit website "$domain" ;;
+    3) printf 'conf.d filename (.conf): '; read -r file; [[ -n "$file" ]] && menu_exec nginx edit conf.d "$file" ;;
+    4) printf 'Snippet filename (.conf): '; read -r file; [[ -n "$file" ]] && menu_exec nginx edit snippets "$file" ;;
+    *) return ;;
+  esac
+  menu_pause
 }
 
 menu_nginx_view() {

@@ -14,6 +14,7 @@ cmd_nginx() {
     stop) (($# == 0)) || die "nginx stop accepts no arguments." "$EXIT_INVALID_ARGUMENT"; nginx_stop ;;
     start) (($# == 0)) || die "nginx start accepts no arguments." "$EXIT_INVALID_ARGUMENT"; nginx_start ;;
     config) nginx_view_config "$@" ;;
+    edit) nginx_manual_edit "$@" ;;
     global) nginx_global "$@" ;;
     website) nginx_website "$@" ;;
     security) (($# == 0)) || die "nginx security accepts no arguments." "$EXIT_INVALID_ARGUMENT"; nginx_security_audit ;;
@@ -23,7 +24,7 @@ cmd_nginx() {
     backup-list) (($# == 0)) || die "nginx backup-list accepts no arguments." "$EXIT_INVALID_ARGUMENT"; nginx_backup_list ;;
     restore) nginx_restore_config "$@" ;;
     history) (($# == 0)) || die "nginx history accepts no arguments." "$EXIT_INVALID_ARGUMENT"; nginx_history ;;
-    *) die "Usage: serverctl nginx <status|test|reload|restart|stop|start|config|global|website|security|access-log|error-log|backup|backup-list|restore|history>" "$EXIT_INVALID_ARGUMENT" ;;
+    *) die "Usage: serverctl nginx <status|test|reload|restart|stop|start|config|edit|global|website|security|access-log|error-log|backup|backup-list|restore|history>" "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }
 
@@ -159,6 +160,63 @@ nginx_view_config() {
     included) nginx -T ;;
     *) die 'Unknown Nginx configuration view.' "$EXIT_INVALID_ARGUMENT" ;;
   esac
+}
+
+nginx_manual_edit() {
+  require_root
+  local target=${1:-} name=${2:-} file label
+  case "$target" in
+    main)
+      (($# == 1)) || die 'Usage: serverctl nginx edit main' "$EXIT_INVALID_ARGUMENT"
+      file=$(root_path /etc/nginx/nginx.conf); label=nginx.conf
+      ;;
+    website)
+      (($# == 2)) || die 'Usage: serverctl nginx edit website DOMAIN' "$EXIT_INVALID_ARGUMENT"
+      name=${name,,}; validate_site_name "$name" || die 'Invalid website name.' "$EXIT_VALIDATION"; website_exists "$name" || die 'Website not found.' "$EXIT_VALIDATION"
+      file="$(nginx_available_dir)/$name.conf"; label="website $name"
+      ;;
+    conf.d)
+      (($# == 2)) || die 'Usage: serverctl nginx edit conf.d FILE' "$EXIT_INVALID_ARGUMENT"
+      safe_basename "$name" && [[ "$name" == *.conf ]] || die 'conf.d file must be a .conf basename.' "$EXIT_VALIDATION"
+      file="$(root_path /etc/nginx/conf.d)/$name"; label="conf.d/$name"
+      ;;
+    snippets)
+      (($# == 2)) || die 'Usage: serverctl nginx edit snippets FILE' "$EXIT_INVALID_ARGUMENT"
+      safe_basename "$name" && [[ "$name" == *.conf ]] || die 'Snippet file must be a .conf basename.' "$EXIT_VALIDATION"
+      file="$(root_path /etc/nginx/snippets)/$name"; label="snippets/$name"
+      ;;
+    *) die 'Usage: serverctl nginx edit <main|website DOMAIN|conf.d FILE|snippets FILE>' "$EXIT_INVALID_ARGUMENT" ;;
+  esac
+  [[ -f "$file" ]] || die "Nginx configuration file not found: $file" "$EXIT_VALIDATION"
+  with_lock nginx _nginx_manual_edit_locked "$file" "$label"
+}
+
+_nginx_manual_edit_locked() {
+  local file=$1 label=$2 editor=${VISUAL:-${EDITOR:-nano}} editor_name backup
+  editor_name=${editor##*/}
+  case "$editor_name" in nano|vi|vim|nvim) ;;
+    *) die 'EDITOR must be nano, vi, vim, or nvim.' "$EXIT_VALIDATION" ;;
+  esac
+  has_command "$editor_name" || die "Editor not found: $editor_name" "$EXIT_SYSTEM"
+  backup=$(mktemp "$STATE_DIR/.nginx-manual-edit.XXXXXX")
+  cp -a -- "$file" "$backup"
+  nginx_backup_config
+  info "Opening $file. Save and exit the editor to validate the configuration."
+  if ! "$editor_name" "$file"; then
+    cp -a -- "$backup" "$file"; rm -f -- "$backup"
+    die 'Editor failed; previous Nginx configuration was restored.' "$EXIT_SYSTEM"
+  fi
+  if nginx -t && run_cmd systemctl reload nginx; then
+    rm -f -- "$backup"
+    audit_event "nginx manual edit $label" SUCCESS
+    ok "Nginx configuration updated and reloaded: $file"
+    return 0
+  fi
+  cp -a -- "$backup" "$file"
+  rm -f -- "$backup"
+  nginx -t >/dev/null 2>&1 && run_cmd systemctl reload nginx || true
+  audit_event "nginx manual edit $label" FAILED 'invalid configuration; previous file restored'
+  die 'Invalid Nginx configuration; previous file was restored.' "$EXIT_VALIDATION"
 }
 
 nginx_global() {
