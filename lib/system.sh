@@ -173,29 +173,26 @@ cmd_update() {
 SERVERCTL_REPOSITORY_NAME="CLI_Web.Control.Panel_by.safe"
 
 serverctl_source_dir() {
-  local candidate current
+  local candidate current git_root
   if [[ -n "$SERVERCTL_SOURCE_DIR" ]]; then
-    [[ -d "$SERVERCTL_SOURCE_DIR/.git" ]] || die "Configured serverctl source directory is not a Git repository: $SERVERCTL_SOURCE_DIR" "$EXIT_VALIDATION"
+    git_root=$(git -C "$SERVERCTL_SOURCE_DIR" rev-parse --show-toplevel 2>/dev/null || true)
+    [[ -n "$git_root" ]] || die "Configured serverctl source directory is not a Git repository: $SERVERCTL_SOURCE_DIR" "$EXIT_VALIDATION"
     printf '%s' "$SERVERCTL_SOURCE_DIR"
     return 0
   fi
 
   current=$(pwd -P 2>/dev/null || true)
-  if [[ "$(basename -- "$current")" == "$SERVERCTL_REPOSITORY_NAME" && -d "$current/.git" ]]; then
-    printf '%s' "$current"
+  git_root=$(git -C "$current" rev-parse --show-toplevel 2>/dev/null || true)
+  if [[ "$(basename -- "$git_root")" == "$SERVERCTL_REPOSITORY_NAME" ]]; then
+    printf '%s' "$git_root"
     return 0
   fi
 
-  local candidates=()
-  shopt -s nullglob
-  candidates=(/home/*/"$SERVERCTL_REPOSITORY_NAME" /root/"$SERVERCTL_REPOSITORY_NAME")
-  shopt -u nullglob
-  for candidate in "${candidates[@]}"; do
-    if [[ -d "$candidate/.git" ]]; then
-      printf '%s' "$candidate"
-      return 0
-    fi
-  done
+  candidate=$(find /home /root -maxdepth 3 -type d -name "$SERVERCTL_REPOSITORY_NAME" -print -quit 2>/dev/null || true)
+  if [[ -n "$candidate" ]] && git -C "$candidate" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    printf '%s' "$(git -C "$candidate" rev-parse --show-toplevel)"
+    return 0
+  fi
 
   die "Could not find $SERVERCTL_REPOSITORY_NAME. Set SERVERCTL_SOURCE_DIR in /etc/serverctl/serverctl.conf." "$EXIT_VALIDATION"
 }
