@@ -14,7 +14,7 @@ if (dashboard_logged_in()) {
 $error = '';
 $csrf = dashboard_csrf_token();
 $bot_provider = dashboard_bot_provider();
-$bot_enabled = dashboard_bot_enabled();
+$bot_enabled = dashboard_bot_login_enabled();
 $bot_site_key = dashboard_bot_site_key();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $provided_csrf = (string) ($_POST['csrf_token'] ?? '');

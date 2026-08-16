@@ -24,6 +24,11 @@ function dashboard_bot_enabled(): bool
         && dashboard_bot_secret() !== '';
 }
 
+function dashboard_bot_login_enabled(): bool
+{
+    return dashboard_bot_enabled() && !dashboard_request_is_local_host();
+}
+
 function dashboard_bot_verify_request(string $endpoint, array $payload): ?array
 {
     if (!function_exists('curl_init')) {
@@ -57,7 +62,7 @@ function dashboard_bot_verify_request(string $endpoint, array $payload): ?array
 
 function dashboard_bot_verify_login(string $token): bool
 {
-    if (!dashboard_bot_enabled()) {
+    if (!dashboard_bot_login_enabled()) {
         return true;
     }
     $token = trim($token);
