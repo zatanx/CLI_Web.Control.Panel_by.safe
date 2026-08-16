@@ -9,7 +9,17 @@ database_health() {
   local database=${1:-} query
   (($# <= 1)) || die "database health accepts at most one database name." "$EXIT_INVALID_ARGUMENT"
   service_is_active mariadb || die "MariaDB is not running." "$EXIT_SYSTEM"
-  if [[ -n "$database" ]]; then validate_db_name "$database" || die "Invalid database name." "$EXIT_VALIDATION"; database_exists "$database" || die "Database not found." "$EXIT_VALIDATION"; fi
+  if [[ -n "$database" ]]; then
+    validate_db_name "$database" || die "Invalid database name." "$EXIT_VALIDATION"
+    database_exists "$database" || die "Database not found in serverctl registry." "$EXIT_VALIDATION"
+    if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
+      if database_exists_in_mariadb "$database"; then :; else
+        local verify_rc=$?
+        ((verify_rc == 1)) && die "Database not found in MariaDB." "$EXIT_VALIDATION"
+        die "Unable to verify MariaDB database state." "$EXIT_SYSTEM"
+      fi
+    fi
+  fi
   query="SELECT VARIABLE_NAME, VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS WHERE VARIABLE_NAME IN ('THREADS_CONNECTED','SLOW_QUERIES');"
   mariadb --protocol=socket --batch --skip-column-names -e "$query"
   if [[ -n "$database" ]]; then
@@ -36,6 +46,14 @@ database_create() {
   (($# == 1)) && [[ -n "$database" ]] || die "Database name is required and no extra arguments are allowed." "$EXIT_INVALID_ARGUMENT"
   validate_db_name "$database" || die "Database name must start with a letter and contain only letters, numbers, or underscore (max 48)." "$EXIT_VALIDATION"
   database_exists "$database" && die "Database already exists in serverctl." "$EXIT_VALIDATION"
+  if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
+    if database_exists_in_mariadb "$database"; then
+      die "Database already exists in MariaDB but is not registered by serverctl." "$EXIT_VALIDATION"
+    else
+      local verify_rc=$?
+      ((verify_rc == 1)) || die "Unable to verify MariaDB database state." "$EXIT_SYSTEM"
+    fi
+  fi
   confirm "Create database $database and a restricted user?" || die "Cancelled." "$EXIT_GENERAL"
   db_user="u_${database,,}"; db_user=${db_user:0:32}
   password=$(generate_password)
@@ -58,12 +76,31 @@ database_remove() {
   local record db_user sql_file
   record=$(database_record_path "$database"); db_user=$(record_get "$record" USER)
   [[ "$db_user" =~ ^u_[a-z0-9_]{1,30}$ ]] || die "Invalid database user metadata." "$EXIT_VALIDATION"
-  if ((no_backup == 0)); then backup_create_database "$database"; fi
+  if ((no_backup == 0)); then
+    if [[ "$SERVERCTL_TEST_MODE" == 1 ]]; then
+      backup_create_database "$database"
+    elif database_exists_in_mariadb "$database"; then
+      backup_create_database "$database"
+    else
+      local verify_rc=$?
+      if ((verify_rc == 1)); then
+        warn "Database $database is missing from MariaDB; skipping backup and removing stale registry."
+      else
+        die "Unable to verify MariaDB database state." "$EXIT_SYSTEM"
+      fi
+    fi
+  fi
   confirm "Permanently drop database $database?" "$database" || die "Cancelled." "$EXIT_GENERAL"
   sql_file=$(mktemp "$STATE_DIR/.database.XXXXXX.sql"); chmod 0600 "$sql_file"
   printf "DROP DATABASE IF EXISTS \`%s\`;\nDROP USER IF EXISTS '%s'@'localhost';\nFLUSH PRIVILEGES;\n" "$database" "$db_user" > "$sql_file"
   mariadb_execute_file "$sql_file" || { rm -f -- "$sql_file"; die "MariaDB rejected the drop request." "$EXIT_SYSTEM"; }
   rm -f -- "$sql_file" "$record"; ok "Database removed: $database"
+}
+
+database_exists_in_mariadb() {
+  local database=$1 result
+  result=$(mariadb --protocol=socket --batch --skip-column-names -e "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = '$database';") || return "$EXIT_SYSTEM"
+  [[ "$result" == "$database" ]]
 }
 
 generate_password() {

@@ -57,6 +57,13 @@ backup_create_database() {
   local database=$1 archive stage
   validate_db_name "$database" || die "Invalid database name." "$EXIT_VALIDATION"
   database_exists "$database" || die "Database not found." "$EXIT_VALIDATION"
+  if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
+    if database_exists_in_mariadb "$database"; then :; else
+      local verify_rc=$?
+      ((verify_rc == 1)) && die "Database does not exist in MariaDB." "$EXIT_VALIDATION"
+      die "Unable to verify MariaDB database state." "$EXIT_SYSTEM"
+    fi
+  fi
   archive="$BACKUP_DIR/serverctl-database-$database-$(backup_timestamp).tar.gz"
   stage=$(mktemp -d "$BACKUP_DIR/.stage.XXXXXX")
   if [[ "$SERVERCTL_TEST_MODE" == 1 ]]; then printf '%s\n' '-- test dump' > "$stage/database.sql"; else mariadb-dump --single-transaction --routines --triggers -- "$database" > "$stage/database.sql"; fi
