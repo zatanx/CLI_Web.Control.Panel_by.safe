@@ -104,15 +104,29 @@ website_remove() {
 }
 
 _website_remove_locked() {
-  local domain=$1 php=$2 user=$3 site_root=$4
+  local domain=$1 php=$2 user=$3 site_root=$4 enabled_file enabled_target="" enabled_snapshot=""
   assert_safe_web_path "$site_root"
+  enabled_file="$(nginx_enabled_dir)/$domain.conf"
+  if [[ -L "$enabled_file" ]]; then
+    enabled_target=$(readlink -- "$enabled_file")
+  elif [[ -e "$enabled_file" ]]; then
+    enabled_snapshot=$(mktemp "$STATE_DIR/.website-remove.XXXXXX")
+    rm -f -- "$enabled_snapshot"
+    cp -a -- "$enabled_file" "$enabled_snapshot"
+  fi
   ROLLBACK_FILES=()
-  backup_config_file "$(nginx_enabled_dir)/$domain.conf"
   backup_config_file "$(nginx_available_dir)/$domain.conf"
   backup_config_file "$(php_pool_dir "$php")/$domain.conf"
   backup_config_file "$(nginx_access_path "$domain")"
-  rm -f -- "$(nginx_enabled_dir)/$domain.conf" "$(nginx_available_dir)/$domain.conf" "$(php_pool_dir "$php")/$domain.conf" "$(nginx_access_path "$domain")"
-  validate_nginx || { rollback_configs; error "Nginx validation failed after removal; configuration restored."; return "$EXIT_VALIDATION"; }
+  rm -f -- "$enabled_file" "$(nginx_available_dir)/$domain.conf" "$(php_pool_dir "$php")/$domain.conf" "$(nginx_access_path "$domain")"
+  if ! validate_nginx; then
+    rollback_configs
+    if [[ -n "$enabled_target" ]]; then ln -sfn -- "$enabled_target" "$enabled_file"; elif [[ -n "$enabled_snapshot" ]]; then cp -a -- "$enabled_snapshot" "$enabled_file"; fi
+    rm -f -- "$enabled_snapshot"
+    error "Nginx validation failed after removal; configuration restored."
+    return "$EXIT_VALIDATION"
+  fi
+  rm -f -- "$enabled_snapshot"
   run_cmd systemctl reload nginx; run_cmd systemctl reload "php$php-fpm"
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
     userdel "$user" 2>/dev/null || true

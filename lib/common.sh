@@ -170,6 +170,7 @@ rollback_configs() {
   for pair in "${ROLLBACK_FILES[@]}"; do
     original=${pair%%|*}; snapshot=${pair#*|}
     cp -a -- "$snapshot" "$original" || true
+    rm -f -- "$snapshot"
   done
   ROLLBACK_FILES=()
 }
