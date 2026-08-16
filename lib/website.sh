@@ -114,7 +114,7 @@ website_remove() {
 }
 
 remove_website_user() {
-  local user=$1 attempt
+  local user=$1 attempt group_members
   [[ "$SERVERCTL_TEST_MODE" == 1 ]] && return 0
   getent passwd "$user" >/dev/null 2>&1 || return 0
 
@@ -135,6 +135,10 @@ remove_website_user() {
   if getent passwd "$user" >/dev/null 2>&1; then
     warn "Linux user $user could not be removed. Remove it after stopping its remaining processes."
     return 1
+  fi
+  if getent group "$user" >/dev/null 2>&1; then
+    group_members=$(getent group "$user" | cut -d: -f4)
+    [[ -n "$group_members" ]] || groupdel "$user" 2>/dev/null || true
   fi
   return 0
 }
