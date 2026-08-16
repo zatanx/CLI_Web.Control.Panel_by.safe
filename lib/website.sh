@@ -113,6 +113,32 @@ website_remove() {
   with_lock website _website_remove_locked "$domain" "$php" "$user" "$site_root"
 }
 
+remove_website_user() {
+  local user=$1 attempt
+  [[ "$SERVERCTL_TEST_MODE" == 1 ]] && return 0
+  getent passwd "$user" >/dev/null 2>&1 || return 0
+
+  if ! userdel "$user" 2>/dev/null; then
+    if has_command pkill; then
+      pkill -TERM -u "$user" 2>/dev/null || true
+      for attempt in 1 2 3 4 5; do
+        pgrep -u "$user" >/dev/null 2>&1 || break
+        sleep 1
+      done
+      if pgrep -u "$user" >/dev/null 2>&1; then
+        pkill -KILL -u "$user" 2>/dev/null || true
+      fi
+    fi
+    userdel "$user" 2>/dev/null || true
+  fi
+
+  if getent passwd "$user" >/dev/null 2>&1; then
+    warn "Linux user $user could not be removed. Remove it after stopping its remaining processes."
+    return 1
+  fi
+  return 0
+}
+
 _website_remove_locked() {
   local domain=$1 php=$2 user=$3 site_root=$4 enabled_file enabled_target="" enabled_snapshot=""
   assert_safe_web_path "$site_root"
@@ -138,13 +164,11 @@ _website_remove_locked() {
   fi
   rm -f -- "$enabled_snapshot"
   run_cmd systemctl reload nginx; run_cmd systemctl reload "php$php-fpm"
-  if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
-    userdel "$user" 2>/dev/null || true
-  fi
-  rm -rf -- "$site_root"
-  rm -f -- "$(website_record_path "$domain")"
   commit_configs
   sftp_apply_config "" "" "" "$domain" || warn "Website removed, but the SFTP SSH configuration could not be reloaded."
+  remove_website_user "$user" || true
+  rm -rf -- "$site_root"
+  rm -f -- "$(website_record_path "$domain")"
   ok "Website removed: $domain"
 }
 
