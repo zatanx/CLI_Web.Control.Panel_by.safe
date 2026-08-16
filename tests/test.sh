@@ -25,9 +25,9 @@ assert_true 'accepts localhost site name' validate_site_name localhost
 assert_true 'accepts IPv4 site name' validate_site_name 192.168.1.50
 assert_false 'rejects IPv4 as public domain' validate_domain 192.168.1.50
 assert_true 'recognizes private site name' is_local_site 192.168.1.50
-assert_true 'accepts local dashboard hostname' dashboard_validate_name dashboard.192.168.1.50
-assert_false 'rejects public dashboard IP hostname' dashboard_validate_name dashboard.8.8.8.8
-dashboard_render_nginx dashboard.192.168.1.50 /run/php/php8.3-fpm.sock '' yes 8088
+assert_true 'accepts local dashboard IP' dashboard_validate_name 192.168.1.50
+assert_false 'rejects separate dashboard IP hostname' dashboard_validate_name dashboard.192.168.1.50
+dashboard_render_nginx 192.168.1.50 /run/php/php8.3-fpm.sock '' yes 8088
 assert_file_contains 'local dashboard listens on port 8088' "$DASHBOARD_NGINX_AVAILABLE" 'listen 8088;'
 dashboard_render_nginx example.com /run/php/php8.3-fpm.sock /etc/letsencrypt/live/example.com no 8088
 assert_file_contains 'domain dashboard listens on TLS port 8088' "$DASHBOARD_NGINX_AVAILABLE" 'listen 8088 ssl http2;'

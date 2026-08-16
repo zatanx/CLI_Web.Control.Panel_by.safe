@@ -267,7 +267,7 @@ Next steps:
   3. Run: sudo serverctl security status
   4. Configure an off-server backup copy (NAS/SFTP/rsync).
   5. Enable Dashboard after issuing an HTTPS certificate:
-     sudo serverctl dashboard install dashboard.example.com
+     sudo serverctl dashboard install example.com
 ========================================
 EOF
 }

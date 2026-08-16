@@ -155,21 +155,11 @@ dashboard_status() {
 }
 
 dashboard_validate_name() {
-  local domain=${1,,} base
-  if [[ "$domain" == dashboard.* ]]; then
-    base=${domain#dashboard.}
-    validate_ip "$base" && is_local_site "$base"
-    return
-  fi
-  validate_site_name "$domain"
+  validate_site_name "${1,,}"
 }
 
 dashboard_is_local_name() {
-  local domain=${1,,} base
-  is_local_site "$domain" && return 0
-  [[ "$domain" == dashboard.* ]] || return 1
-  base=${domain#dashboard.}
-  validate_ip "$base" && is_local_site "$base"
+  is_local_site "${1,,}"
 }
 
 dashboard_render_nginx() {
@@ -239,7 +229,7 @@ dashboard_install() {
   require_root
   local domain=${1:-} dashboard_user=admin user_supplied=0 requested_user='' password_hash='' password readback php_socket cert_root local_mode=no dashboard_ssl=yes dashboard_port=8088
   [[ -n "$domain" ]] || die 'Usage: serverctl dashboard install DOMAIN [--user USER] [--password-hash HASH]' "$EXIT_INVALID_ARGUMENT"
-  shift || true; domain=${domain,,}; dashboard_validate_name "$domain" || die 'Invalid dashboard domain, localhost, IPv4 address, or dashboard.IP hostname.' "$EXIT_VALIDATION"
+  shift || true; domain=${domain,,}; dashboard_validate_name "$domain" || die 'Invalid dashboard site name. Use localhost, an IPv4 address, or a DNS domain.' "$EXIT_VALIDATION"
   while (($#)); do
     case "$1" in
       --user) (($# >= 2)) || die '--user requires a value.' "$EXIT_INVALID_ARGUMENT"; dashboard_user=$2; user_supplied=1; shift 2 ;;

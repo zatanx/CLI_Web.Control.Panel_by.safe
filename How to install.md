@@ -129,28 +129,12 @@ sudo serverctl dashboard install localhost --user myadmin
 http://localhost:8088/
 ```
 
-หากต้องการแยก URL ของ Dashboard ออกจากเว็บไซต์ ให้เพิ่มรายการนี้ในไฟล์ `hosts` ของเครื่องลูกข่ายทุกเครื่อง:
+Dashboard จะใช้ hostname เดียวกับเว็บไซต์ และแยกการเข้าใช้งานด้วย port `8088` เท่านั้น
+ไม่ต้องสร้าง `dashboard.` hostname หรือเพิ่มรายการในไฟล์ `hosts`:
 
 ```text
-192.168.2.66 dashboard.192.168.2.66
-```
-
-จากนั้นติดตั้ง Dashboard ด้วย:
-
-```bash
-sudo serverctl dashboard install dashboard.192.168.2.66
-```
-
-Dashboard hostname ภายใน LAN จะเปิดที่ port `8088`:
-
-```text
-http://dashboard.192.168.2.66:8088/
-```
-
-สำหรับ domain Dashboard จะใช้ HTTPS ที่ port เดียวกัน:
-
-```text
-https://dashboard.example.com:8088/
+LAN/IP:  http://192.168.2.66:8088/
+Domain: https://xxxxxx.com:8088/
 ```
 
 หากเปิดใช้งาน UFW ให้อนุญาต port นี้จากวง LAN ของคุณ เช่น:
