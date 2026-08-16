@@ -81,7 +81,11 @@ security_scan() {
 }
 
 security_ports() {
-  local allowed=" $SSH_PORT 80 443 " line port
+  local allowed=" $SSH_PORT 80 443 " line port dashboard_port
+  if [[ -f "$(root_path /etc/serverctl/dashboard.conf)" ]] && [[ "$(record_get "$(root_path /etc/serverctl/dashboard.conf)" DASHBOARD_LOCAL_ONLY || true)" == yes ]]; then
+    dashboard_port=$(record_get "$(root_path /etc/serverctl/dashboard.conf)" DASHBOARD_PORT || printf 8088)
+    [[ "$dashboard_port" =~ ^[0-9]+$ ]] && allowed+=" $dashboard_port "
+  fi
   printf '%-8s %-8s %-24s %s\n' PORT PROTO ADDRESS PROCESS
   while IFS= read -r line; do
     port=$(awk '{address=$5; sub(/^.*:/,"",address); print address}' <<< "$line")

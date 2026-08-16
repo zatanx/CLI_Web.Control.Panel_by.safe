@@ -107,6 +107,30 @@ sudo serverctl dashboard install dashboard.example.com
 sudo serverctl dashboard install 192.168.2.66
 ```
 
+หากต้องการแยก URL ของ Dashboard ออกจากเว็บไซต์ ให้เพิ่มรายการนี้ในไฟล์ `hosts` ของเครื่องลูกข่ายทุกเครื่อง:
+
+```text
+192.168.2.66 dashboard.192.168.2.66
+```
+
+จากนั้นติดตั้ง Dashboard ด้วย:
+
+```bash
+sudo serverctl dashboard install dashboard.192.168.2.66
+```
+
+Dashboard ภายใน LAN จะเปิดที่ port `8088`:
+
+```text
+http://dashboard.192.168.2.66:8088/
+```
+
+หากเปิดใช้งาน UFW ให้อนุญาต port นี้จากวง LAN ของคุณ เช่น:
+
+```bash
+sudo serverctl firewall add 8088 tcp 192.168.2.0/24
+```
+
 ดูรายละเอียดด้านความปลอดภัยและคำสั่งถอนการติดตั้งได้ที่ [DASHBOARD.md](DASHBOARD.md)
 
 See [DASHBOARD.md](DASHBOARD.md) for the Dashboard security model and uninstall instructions.

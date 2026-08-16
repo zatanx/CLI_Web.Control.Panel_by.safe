@@ -154,14 +154,32 @@ dashboard_status() {
   if [[ -L "$DASHBOARD_NGINX_ENABLED" || -f "$DASHBOARD_NGINX_ENABLED" ]]; then printf 'Nginx       : ENABLED\n'; else printf 'Nginx       : DISABLED\n'; fi
 }
 
+dashboard_validate_name() {
+  local domain=${1,,} base
+  if [[ "$domain" == dashboard.* ]]; then
+    base=${domain#dashboard.}
+    validate_ip "$base" && is_local_site "$base"
+    return
+  fi
+  validate_site_name "$domain"
+}
+
+dashboard_is_local_name() {
+  local domain=${1,,} base
+  is_local_site "$domain" && return 0
+  [[ "$domain" == dashboard.* ]] || return 1
+  base=${domain#dashboard.}
+  validate_ip "$base" && is_local_site "$base"
+}
+
 dashboard_render_nginx() {
-  local domain=$1 php_socket=$2 cert_root=$3 local_mode=${4:-no}
+  local domain=$1 php_socket=$2 cert_root=$3 local_mode=${4:-no} local_port=${5:-8088}
   if [[ "$local_mode" == yes ]]; then
     atomic_write "$DASHBOARD_NGINX_AVAILABLE" 0644 root root <<EOF
 # Managed by serverctl. Manual changes may be overwritten.
 server {
-    listen 80;
-    listen [::]:80;
+    listen $local_port;
+    listen [::]:$local_port;
     server_name $domain;
     root $DASHBOARD_INSTALL_ROOT/public;
     index index.php;
@@ -227,9 +245,9 @@ EOF
 
 dashboard_install() {
   require_root
-  local domain=${1:-} dashboard_user=admin password_hash='' password readback php_socket cert_root local_mode=no dashboard_ssl=yes
+  local domain=${1:-} dashboard_user=admin password_hash='' password readback php_socket cert_root local_mode=no dashboard_ssl=yes dashboard_port=443
   [[ -n "$domain" ]] || die 'Usage: serverctl dashboard install DOMAIN [--user USER] [--password-hash HASH]' "$EXIT_INVALID_ARGUMENT"
-  shift || true; domain=${domain,,}; validate_site_name "$domain" || die 'Invalid dashboard domain, localhost, or IPv4 address.' "$EXIT_VALIDATION"
+  shift || true; domain=${domain,,}; dashboard_validate_name "$domain" || die 'Invalid dashboard domain, localhost, IPv4 address, or dashboard.IP hostname.' "$EXIT_VALIDATION"
   while (($#)); do
     case "$1" in
       --user) (($# >= 2)) || die '--user requires a value.' "$EXIT_INVALID_ARGUMENT"; dashboard_user=$2; shift 2 ;;
@@ -239,8 +257,8 @@ dashboard_install() {
   done
   [[ "$dashboard_user" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || die 'Invalid dashboard username.' "$EXIT_VALIDATION"
   [[ -d "$DASHBOARD_INSTALL_ROOT/public" ]] || die 'Dashboard files are not installed.' "$EXIT_SYSTEM"
-  if is_local_site "$domain"; then
-    local_mode=yes; dashboard_ssl=no; cert_root=''
+  if dashboard_is_local_name "$domain"; then
+    local_mode=yes; dashboard_ssl=no; dashboard_port=8088; cert_root=''
   else
     cert_root="$(root_path /etc/letsencrypt/live)/$domain"
     [[ -s "$cert_root/fullchain.pem" && -s "$cert_root/privkey.pem" ]] || die "Dashboard requires an existing HTTPS certificate at $cert_root." "$EXIT_VALIDATION"
@@ -264,13 +282,21 @@ DASHBOARD_READ_ONLY=0
 DASHBOARD_ENABLED=1
 DASHBOARD_LOCAL_ONLY=$local_mode
 DASHBOARD_SSL=$dashboard_ssl
+DASHBOARD_PORT=$dashboard_port
 EOF
-  dashboard_render_nginx "$domain" "/run/php/php${DEFAULT_PHP_VERSION}-fpm.sock" "$cert_root" "$local_mode"
+  dashboard_render_nginx "$domain" "/run/php/php${DEFAULT_PHP_VERSION}-fpm.sock" "$cert_root" "$local_mode" "$dashboard_port"
   ln -sfn "$DASHBOARD_NGINX_AVAILABLE" "$DASHBOARD_NGINX_ENABLED"
   validate_nginx || { rm -f -- "$DASHBOARD_NGINX_ENABLED"; die 'Nginx rejected the dashboard configuration.' "$EXIT_VALIDATION"; }
   run_cmd systemctl reload nginx
   audit_event 'dashboard install' SUCCESS "domain=$domain"
-  if [[ "$local_mode" == yes ]]; then ok "Dashboard enabled: http://$domain/"; else ok "Dashboard enabled: https://$domain/"; fi
+  if [[ "$local_mode" == yes ]]; then
+    ok "Dashboard enabled: http://$domain:$dashboard_port/"
+    if ufw status 2>/dev/null | grep -q 'Status: active'; then
+      warn "Allow TCP port $dashboard_port from the LAN with: serverctl firewall add $dashboard_port tcp LAN_CIDR"
+    fi
+  else
+    ok "Dashboard enabled: https://$domain/"
+  fi
 }
 
 dashboard_uninstall() {

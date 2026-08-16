@@ -25,6 +25,10 @@ assert_true 'accepts localhost site name' validate_site_name localhost
 assert_true 'accepts IPv4 site name' validate_site_name 192.168.1.50
 assert_false 'rejects IPv4 as public domain' validate_domain 192.168.1.50
 assert_true 'recognizes private site name' is_local_site 192.168.1.50
+assert_true 'accepts local dashboard hostname' dashboard_validate_name dashboard.192.168.1.50
+assert_false 'rejects public dashboard IP hostname' dashboard_validate_name dashboard.8.8.8.8
+dashboard_render_nginx dashboard.192.168.1.50 /run/php/php8.3-fpm.sock '' yes 8088
+assert_file_contains 'local dashboard listens on port 8088' "$DASHBOARD_NGINX_AVAILABLE" 'listen 8088;'
 assert_false 'rejects command substitution domain' validate_domain 'x$(id).com'
 assert_false 'rejects traversal domain' validate_domain '../example.com'
 assert_false 'rejects leading hyphen label' validate_domain '-bad.example.com'
