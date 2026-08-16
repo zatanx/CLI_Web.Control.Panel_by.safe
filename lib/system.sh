@@ -201,7 +201,7 @@ serverctl_update_source() {
   require_root
   has_command git || die 'Git is required to update serverctl from GitHub.' "$EXIT_SYSTEM"
 
-  local source_dir remote branch old_revision new_revision file
+  local source_dir remote branch old_revision new_revision file dashboard_dir
   source_dir=$(serverctl_source_dir)
   [[ -f "$source_dir/bin/serverctl" && -d "$source_dir/lib" ]] || die "Invalid serverctl source directory: $source_dir" "$EXIT_VALIDATION"
 
@@ -225,6 +225,21 @@ serverctl_update_source() {
   run_cmd install -d -m 0755 "$(root_path /opt/serverctl/bin)" "$(root_path /opt/serverctl/lib)"
   run_cmd install -m 0755 "$source_dir/bin/serverctl" "$(root_path /opt/serverctl/bin/serverctl)"
   run_cmd install -m 0644 "$source_dir"/lib/*.sh "$(root_path /opt/serverctl/lib)/"
+  if [[ -d "$source_dir/dashboard" ]]; then
+    dashboard_dir="$(root_path /opt/serverctl/dashboard)"
+    run_cmd install -d -m 0755 -o root -g root "$dashboard_dir"
+    run_cmd cp -a -- "$source_dir/dashboard/." "$dashboard_dir/"
+    run_cmd chown -R root:root "$dashboard_dir"
+    run_cmd find "$dashboard_dir" -type d -path "$dashboard_dir/public*" -exec chmod 0755 {} +
+    run_cmd find "$dashboard_dir" -type f -path "$dashboard_dir/public/*" -exec chmod 0644 {} +
+    for file in "$dashboard_dir/app" "$dashboard_dir/views"; do
+      [[ -d "$file" ]] || continue
+      run_cmd chown root:www-data "$file"
+      run_cmd chmod 0750 "$file"
+      run_cmd find "$file" -type f -exec chown root:www-data {} +
+      run_cmd find "$file" -type f -exec chmod 0640 {} +
+    done
+  fi
 
   if [[ "$old_revision" == "$new_revision" ]]; then
     ok "serverctl is already up to date (${new_revision:0:12})."
