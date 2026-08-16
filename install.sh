@@ -6,7 +6,7 @@ export PATH
 CDPATH=; export CDPATH
 
 readonly INSTALL_LOG=/var/log/serverctl/install.log
-readonly SERVERCTL_VERSION=1.1.0 SERVERCTL_RELEASE_DATE=2026-08-16
+readonly SERVERCTL_VERSION=1.1.1 SERVERCTL_RELEASE_DATE=2026-08-16
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROFILE=minimal
 DEFAULT_PHP=8.3
@@ -140,8 +140,9 @@ install_serverctl() {
   install -m 0640 "$SCRIPT_DIR/config/serverctl.conf" /etc/serverctl/serverctl.conf
   sed -i "s/^DEFAULT_PHP_VERSION=.*/DEFAULT_PHP_VERSION=$DEFAULT_PHP/" /etc/serverctl/serverctl.conf
   timedatectl set-timezone Asia/Bangkok
-  install -d -m 0755 /etc/fail2ban/jail.d /etc/logrotate.d /etc/systemd/system /etc/letsencrypt/renewal-hooks/deploy /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled
+  install -d -m 0755 /etc/fail2ban/jail.d /etc/fail2ban/filter.d /etc/logrotate.d /etc/systemd/system /etc/letsencrypt/renewal-hooks/deploy /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled
   install -m 0644 "$SCRIPT_DIR/etc/fail2ban/jail.d/serverctl.local" /etc/fail2ban/jail.d/serverctl.local
+  install -m 0644 "$SCRIPT_DIR/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" /etc/fail2ban/filter.d/serverctl-dashboard-login.conf
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl" /etc/logrotate.d/serverctl
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl-web" /etc/logrotate.d/serverctl-web
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl-dashboard" /etc/logrotate.d/serverctl-dashboard
@@ -156,8 +157,11 @@ install_serverctl() {
   chown root:www-data /opt/serverctl/dashboard/app /opt/serverctl/dashboard/views
   find /opt/serverctl/dashboard/app /opt/serverctl/dashboard/views -type f -exec chown root:www-data {} \;
   chmod 0750 /opt/serverctl/dashboard/app /opt/serverctl/dashboard/views
+  touch /var/lib/serverctl/dashboard/audit.log
   chown www-data:www-data /var/lib/serverctl/dashboard
+  chown www-data:www-data /var/lib/serverctl/dashboard/audit.log
   chmod 0750 /var/lib/serverctl/dashboard
+  chmod 0640 /var/lib/serverctl/dashboard/audit.log
   chmod 0751 /opt/serverctl
   chmod 0751 /etc/serverctl
   chmod 0751 /var/lib/serverctl

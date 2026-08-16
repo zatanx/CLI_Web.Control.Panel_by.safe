@@ -16,3 +16,12 @@ enabled = true
 filter = nginx-limit-req
 logpath = /var/log/nginx/error.log
           /var/www/*/logs/error.log
+
+[serverctl-dashboard-login]
+enabled = true
+filter = serverctl-dashboard-login
+logpath = /var/lib/serverctl/dashboard/audit.log
+findtime = 10m
+maxretry = 5
+bantime = 1h
+banaction = ufw

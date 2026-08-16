@@ -4,7 +4,7 @@
 
 - UFW denies incoming traffic except the detected SSH port, 80, and 443.
 - MariaDB binds to `127.0.0.1`; anonymous accounts, remote root rows, and the test database are removed.
-- Fail2Ban enables `sshd`, `nginx-http-auth`, and `nginx-limit-req` jails.
+- Fail2Ban enables `sshd`, `nginx-http-auth`, `nginx-limit-req`, and Dashboard login protection; five failed Dashboard logins from one IP within ten minutes are blocked by UFW for one hour.
 - PHP disables display errors, URL includes, and exposure; strict and secure session cookies are enabled.
 - Nginx blocks dotfiles, `.env`, repository metadata, SQL/log files, and PHP execution below upload/file directories.
 - Site directories are never configured with mode `777`.

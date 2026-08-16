@@ -143,7 +143,10 @@
             if (botSiteKey) botSiteKey.value = bot.site_key || '';
         }
         const botLabels = { none: 'Disabled', recaptcha_v3: 'Google reCAPTCHA v3', turnstile: 'Cloudflare Turnstile' };
-        setText('[data-bot-status]', bot.enabled === 'yes' ? `${botLabels[bot.provider] || bot.provider} enabled` : 'Bot protection disabled');
+        const botStatus = body.dataset.botLocal === 'yes' && bot.enabled === 'yes'
+            ? 'Bypassed for LAN/IP access'
+            : (bot.enabled === 'yes' ? `${botLabels[bot.provider] || bot.provider} enabled` : 'Bot protection disabled');
+        setText('[data-bot-status]', botStatus);
         const botSecret = qs('[data-bot-secret]');
         if (botSecret && !botSettingsDirty) botSecret.value = '';
         [botProvider, botSiteKey, botSecret].forEach((element) => { if (element) element.disabled = botProvider?.value === 'none'; });

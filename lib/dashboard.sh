@@ -335,7 +335,9 @@ dashboard_install() {
   fi
   [[ "$password_hash" =~ ^\$2[ayb]?\$|^\$argon2 ]] || die 'Password hash must be produced by password_hash().' "$EXIT_VALIDATION"
   mkdir -p -- "$DASHBOARD_STATE_DIR"
+  touch "$DASHBOARD_STATE_DIR/audit.log"
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then chown www-data:www-data "$DASHBOARD_STATE_DIR"; chmod 0750 "$DASHBOARD_STATE_DIR"; fi
+  if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then chown www-data:www-data "$DASHBOARD_STATE_DIR/audit.log"; chmod 0640 "$DASHBOARD_STATE_DIR/audit.log"; fi
   atomic_write "$DASHBOARD_CONFIG_FILE" 0640 root www-data <<EOF
 DASHBOARD_DOMAIN=$domain
 DASHBOARD_PATH=/

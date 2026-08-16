@@ -149,10 +149,16 @@ fail2ban_list() {
 
 fail2ban_ip() {
   require_root
-  local action=$1 ip=${2:-}; validate_ip "$ip" || die "Invalid IP address." "$EXIT_VALIDATION"
+  local action=$1 ip=${2:-} jail; validate_ip "$ip" || die "Invalid IP address." "$EXIT_VALIDATION"
   (($# == 2)) || die "Fail2Ban ban/unban accepts one IP address." "$EXIT_INVALID_ARGUMENT"
-  confirm "$action $ip in the sshd jail?" || die "Cancelled." "$EXIT_GENERAL"
-  if [[ "$action" == ban ]]; then run_cmd fail2ban-client set sshd banip "$ip"; else run_cmd fail2ban-client set sshd unbanip "$ip"; fi
+  confirm "$action $ip in Fail2Ban?" || die "Cancelled." "$EXIT_GENERAL"
+  if [[ "$action" == ban ]]; then
+    run_cmd fail2ban-client set sshd banip "$ip"
+  else
+    for jail in sshd serverctl-dashboard-login; do
+      fail2ban-client set "$jail" unbanip "$ip" >/dev/null 2>&1 || true
+    done
+  fi
   ok "Fail2Ban $action completed for $ip."
 }
 
@@ -201,7 +207,7 @@ serverctl_update_source() {
   require_root
   has_command git || die 'Git is required to update serverctl from GitHub.' "$EXIT_SYSTEM"
 
-  local source_dir remote branch old_revision new_revision file dashboard_dir sudoers_file
+  local source_dir remote branch old_revision new_revision file dashboard_dir dashboard_state sudoers_file
   source_dir=$(serverctl_source_dir)
   [[ -f "$source_dir/bin/serverctl" && -d "$source_dir/lib" ]] || die "Invalid serverctl source directory: $source_dir" "$EXIT_VALIDATION"
 
@@ -225,6 +231,14 @@ serverctl_update_source() {
   run_cmd install -d -m 0755 "$(root_path /opt/serverctl/bin)" "$(root_path /opt/serverctl/lib)"
   run_cmd install -m 0755 "$source_dir/bin/serverctl" "$(root_path /opt/serverctl/bin/serverctl)"
   run_cmd install -m 0644 "$source_dir"/lib/*.sh "$(root_path /opt/serverctl/lib)/"
+  if [[ -f "$source_dir/etc/fail2ban/jail.d/serverctl.local" ]]; then
+    run_cmd install -d -m 0755 "$(root_path /etc/fail2ban/jail.d)"
+    run_cmd install -m 0644 "$source_dir/etc/fail2ban/jail.d/serverctl.local" "$(root_path /etc/fail2ban/jail.d/serverctl.local)"
+  fi
+  if [[ -f "$source_dir/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" ]]; then
+    run_cmd install -d -m 0755 "$(root_path /etc/fail2ban/filter.d)"
+    run_cmd install -m 0644 "$source_dir/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" "$(root_path /etc/fail2ban/filter.d/serverctl-dashboard-login.conf)"
+  fi
   if [[ -f "$source_dir/etc/sudoers.d/serverctl" ]]; then
     sudoers_file="$(root_path /etc/sudoers.d/serverctl)"
     run_cmd visudo -cf "$source_dir/etc/sudoers.d/serverctl"
@@ -245,6 +259,15 @@ serverctl_update_source() {
       run_cmd find "$file" -type f -exec chown root:www-data {} +
       run_cmd find "$file" -type f -exec chmod 0640 {} +
     done
+  fi
+  dashboard_state="$(root_path /var/lib/serverctl/dashboard)"
+  if [[ -d "$dashboard_state" ]]; then
+    run_cmd touch "$dashboard_state/audit.log"
+    run_cmd chown www-data:www-data "$dashboard_state/audit.log"
+    run_cmd chmod 0640 "$dashboard_state/audit.log"
+  fi
+  if service_is_active fail2ban; then
+    run_cmd fail2ban-client reload
   fi
 
   if [[ "$old_revision" == "$new_revision" ]]; then
