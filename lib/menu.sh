@@ -56,15 +56,16 @@ EOF
 menu_system_update() {
   local choice
   while true; do
-    printf '\n========================================\n          SYSTEM UPDATE\n========================================\n\n  1. Check for Updates\n  2. Security Updates\n  3. Install Updates\n  4. Update History\n  5. System Health Check\n  6. Reboot Required Status\n\n  0. Back\n========================================\nSelect option: '
+    printf '\n========================================\n          SYSTEM UPDATE\n========================================\n\n  1. Update serverctl from GitHub\n  2. Check for Ubuntu Updates\n  3. Security Updates\n  4. Install Ubuntu Updates\n  5. Update History\n  6. System Health Check\n  7. Reboot Required Status\n\n  0. Back\n========================================\nSelect option: '
     read -r choice
     case "$choice" in
-      1) menu_exec update check; menu_pause ;;
-      2) menu_exec update security; menu_pause ;;
-      3) menu_exec update all; menu_pause ;;
-      4) menu_exec update history; menu_pause ;;
-      5) menu_exec update health; menu_pause ;;
-      6) menu_exec update reboot-status; menu_pause ;;
+      1) menu_exec update serverctl; menu_pause ;;
+      2) menu_exec update check; menu_pause ;;
+      3) menu_exec update security; menu_pause ;;
+      4) menu_exec update all; menu_pause ;;
+      5) menu_exec update history; menu_pause ;;
+      6) menu_exec update health; menu_pause ;;
+      7) menu_exec update reboot-status; menu_pause ;;
       0) return ;;
       *) warn 'Invalid option.' ;;
     esac

@@ -1,5 +1,11 @@
 # Updates
 
+Update the installed serverctl code from the `main` branch on GitHub:
+
+```bash
+sudo serverctl update serverctl
+```
+
 ```bash
 serverctl update check
 sudo serverctl update security

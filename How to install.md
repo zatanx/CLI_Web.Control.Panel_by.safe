@@ -110,3 +110,8 @@ See [DASHBOARD.md](DASHBOARD.md) for the Dashboard security model and uninstall 
 sudo serverctl
 ```
 
+## การอัปเดตระบบ / Update
+
+```bash
+sudo serverctl update serverctl
+```

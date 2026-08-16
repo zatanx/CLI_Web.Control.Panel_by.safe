@@ -26,6 +26,7 @@ SSH_PORT=22
 TIMEZONE=Asia/Bangkok
 ALLOWED_PHP_VERSIONS="8.2 8.3 8.4"
 REMOTE_BACKUP_TARGET=""
+SERVERCTL_SOURCE_DIR="${SERVERCTL_SOURCE_DIR:-}"
 
 supports_color() { [[ "$SERVERCTL_COLOR" == always ]] || [[ "$SERVERCTL_COLOR" == auto && -t 1 && "${TERM:-dumb}" != dumb ]]; }
 color() { local code=$1; shift; if supports_color; then printf '\033[%sm%s\033[0m' "$code" "$*"; else printf '%s' "$*"; fi; }
@@ -67,6 +68,7 @@ load_config() {
       TIMEZONE) [[ "$value" =~ ^[A-Za-z_+-]+(/[A-Za-z0-9_+-]+)+$ ]] && TIMEZONE=$value ;;
       ALLOWED_PHP_VERSIONS) [[ "$value" =~ ^[0-9.\ ]+$ ]] && ALLOWED_PHP_VERSIONS=$value ;;
       REMOTE_BACKUP_TARGET) validate_remote_backup_target "$value" && REMOTE_BACKUP_TARGET=$value ;;
+      SERVERCTL_SOURCE_DIR) [[ "$value" == /* ]] && SERVERCTL_SOURCE_DIR=$value ;;
     esac
   done < "$CONFIG_FILE"
 }

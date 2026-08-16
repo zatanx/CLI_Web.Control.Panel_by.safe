@@ -65,7 +65,7 @@ Commands:
   security status|scan|ports|permissions|php-scan|suid|services|updates|audit|ssh [status|harden]
   firewall status|list|add|remove|reload
   fail2ban status|list|ban IP|unban IP
-  update check|security|all
+  update serverctl|check|security|all
   update history|health|reboot-status
   dashboard status|snapshot|websites
   dashboard logs TYPE [LINES] [SEARCH]

@@ -63,6 +63,7 @@ serverctl fail2ban status|list
 serverctl fail2ban ban IP
 serverctl fail2ban unban IP
 
+serverctl update serverctl
 serverctl update check|security|all
 serverctl update history
 serverctl update health

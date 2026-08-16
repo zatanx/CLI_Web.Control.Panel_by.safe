@@ -159,14 +159,81 @@ fail2ban_ip() {
 cmd_update() {
   local sub=${1:-}; shift || true
   case "$sub" in
+    serverctl) (($# == 0)) || die 'update serverctl accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; with_lock serverctl-code-update serverctl_update_source ;;
     check) (($# == 0)) || die 'update check accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_check ;;
     security) (($# == 0)) || die 'update security accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_install security ;;
     all) (($# == 0)) || die 'update all accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_install all ;;
     history) (($# == 0)) || die 'update history accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_history ;;
     health) (($# == 0)) || die 'update health accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; apt_lock_check; update_precheck ;;
     reboot-status) (($# == 0)) || die 'update reboot-status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_reboot_status ;;
-    *) die "Usage: serverctl update <check|security|all|history|health|reboot-status>" "$EXIT_INVALID_ARGUMENT" ;;
+    *) die "Usage: serverctl update <serverctl|check|security|all|history|health|reboot-status>" "$EXIT_INVALID_ARGUMENT" ;;
   esac
+}
+
+SERVERCTL_REPOSITORY_NAME="CLI_Web.Control.Panel_by.safe"
+
+serverctl_source_dir() {
+  local candidate current
+  if [[ -n "$SERVERCTL_SOURCE_DIR" ]]; then
+    [[ -d "$SERVERCTL_SOURCE_DIR/.git" ]] || die "Configured serverctl source directory is not a Git repository: $SERVERCTL_SOURCE_DIR" "$EXIT_VALIDATION"
+    printf '%s' "$SERVERCTL_SOURCE_DIR"
+    return 0
+  fi
+
+  current=$(pwd -P 2>/dev/null || true)
+  if [[ "$(basename -- "$current")" == "$SERVERCTL_REPOSITORY_NAME" && -d "$current/.git" ]]; then
+    printf '%s' "$current"
+    return 0
+  fi
+
+  local candidates=()
+  shopt -s nullglob
+  candidates=(/home/*/"$SERVERCTL_REPOSITORY_NAME" /root/"$SERVERCTL_REPOSITORY_NAME")
+  shopt -u nullglob
+  for candidate in "${candidates[@]}"; do
+    if [[ -d "$candidate/.git" ]]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  die "Could not find $SERVERCTL_REPOSITORY_NAME. Set SERVERCTL_SOURCE_DIR in /etc/serverctl/serverctl.conf." "$EXIT_VALIDATION"
+}
+
+serverctl_update_source() {
+  require_root
+  has_command git || die 'Git is required to update serverctl from GitHub.' "$EXIT_SYSTEM"
+
+  local source_dir remote branch old_revision new_revision file
+  source_dir=$(serverctl_source_dir)
+  [[ -f "$source_dir/bin/serverctl" && -d "$source_dir/lib" ]] || die "Invalid serverctl source directory: $source_dir" "$EXIT_VALIDATION"
+
+  branch=$(git -C "$source_dir" symbolic-ref --short HEAD 2>/dev/null || true)
+  [[ "$branch" == main ]] || die "serverctl source must be on the main branch (current: ${branch:-detached})." "$EXIT_VALIDATION"
+  remote=$(git -C "$source_dir" remote get-url origin 2>/dev/null || true)
+  [[ -n "$remote" ]] || die "serverctl source has no Git origin remote." "$EXIT_VALIDATION"
+  [[ -z "$(git -C "$source_dir" status --porcelain)" ]] || die "Local changes exist in $source_dir. Commit or back them up before updating." "$EXIT_SYSTEM"
+
+  old_revision=$(git -C "$source_dir" rev-parse HEAD)
+  info "Updating serverctl from $remote"
+  run_cmd git -C "$source_dir" pull --ff-only origin main
+  new_revision=$(git -C "$source_dir" rev-parse HEAD)
+
+  run_cmd bash -n "$source_dir/bin/serverctl"
+  for file in "$source_dir"/lib/*.sh; do
+    [[ -f "$file" ]] || continue
+    run_cmd bash -n "$file"
+  done
+
+  run_cmd install -d -m 0755 "$(root_path /opt/serverctl/bin)" "$(root_path /opt/serverctl/lib)"
+  run_cmd install -m 0755 "$source_dir/bin/serverctl" "$(root_path /opt/serverctl/bin/serverctl)"
+  run_cmd install -m 0644 "$source_dir"/lib/*.sh "$(root_path /opt/serverctl/lib)/"
+
+  if [[ "$old_revision" == "$new_revision" ]]; then
+    ok "serverctl is already up to date (${new_revision:0:12})."
+  else
+    ok "serverctl updated to ${new_revision:0:12}."
+  fi
 }
 
 UPDATE_HISTORY_FILE="${UPDATE_HISTORY_FILE:-$LOG_DIR/update-history.log}"
