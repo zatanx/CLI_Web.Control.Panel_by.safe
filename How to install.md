@@ -92,25 +92,41 @@ sudo serverctl ssl enable example.com --email admin@example.com
 
 ### ไทย
 
-Dashboard จะถูกติดตั้งเฉพาะ source code และปิดการใช้งานไว้เป็นค่าเริ่มต้น สำหรับระบบ Internet ให้สร้าง DNS record และมี HTTPS certificate ส่วนระบบปิดภายใน LAN สามารถใช้ localhost หรือ IP address ผ่าน HTTP ได้:
+Dashboard จะถูกติดตั้งเฉพาะ source code และปิดการใช้งานไว้เป็นค่าเริ่มต้น โดย Dashboard ทุกแบบใช้ port `8088` แยกจากเว็บไซต์ สำหรับ domain ต้องมี DNS และ HTTPS certificate ส่วน localhost/IP ใช้ HTTP ได้:
 
-The Dashboard source code is installed but remains disabled by default. Public deployments require a dedicated hostname and HTTPS certificate; localhost and LAN IP deployments can use HTTP:
+The Dashboard source code is installed but remains disabled by default. All Dashboard deployments use port `8088`. Public domains require DNS and an HTTPS certificate; localhost and LAN IP deployments use HTTP:
 
 ```bash
 sudo serverctl dashboard status
-sudo serverctl dashboard install dashboard.example.com
+sudo serverctl dashboard install xxxxxx.com --user myadmin
 ```
 
-สำหรับ localhost หรือ IP address ใช้ชื่อโดยตรง ไม่ต้องเติม `dashboard.`:
+สำหรับ domain ให้เข้าใช้งานด้วย:
 
-```bash
-sudo serverctl dashboard install 192.168.2.66
+```text
+https://xxxxxx.com:8088/
 ```
 
-ระหว่างติดตั้งระบบจะถาม Dashboard username และ password หากต้องการกำหนดผ่านคำสั่งโดยตรง:
+สำหรับ localhost หรือ IP address:
 
 ```bash
 sudo serverctl dashboard install 192.168.2.66 --user myadmin
+```
+
+เข้าใช้งานด้วย:
+
+```text
+http://192.168.2.66:8088/
+```
+
+หรือใช้ localhost บนเครื่อง Server:
+
+```bash
+sudo serverctl dashboard install localhost --user myadmin
+```
+
+```text
+http://localhost:8088/
 ```
 
 หากต้องการแยก URL ของ Dashboard ออกจากเว็บไซต์ ให้เพิ่มรายการนี้ในไฟล์ `hosts` ของเครื่องลูกข่ายทุกเครื่อง:
@@ -125,7 +141,7 @@ sudo serverctl dashboard install 192.168.2.66 --user myadmin
 sudo serverctl dashboard install dashboard.192.168.2.66
 ```
 
-Dashboard ภายใน LAN จะเปิดที่ port `8088`:
+Dashboard hostname ภายใน LAN จะเปิดที่ port `8088`:
 
 ```text
 http://dashboard.192.168.2.66:8088/
