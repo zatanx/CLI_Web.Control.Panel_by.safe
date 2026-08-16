@@ -43,7 +43,7 @@ dashboard_update_counts() {
   simulation=$(apt-get -s upgrade 2>/dev/null || true)
   total=$(grep -c '^Inst ' <<< "$simulation" || true)
   security=$(grep '^Inst ' <<< "$simulation" | grep -Eci 'security|UbuntuESMApps|UbuntuESMInfra' || true)
-  printf '%s %s' "${total:-0}" "${security:-0}"
+  printf '%s %s\n' "${total:-0}" "${security:-0}"
 }
 
 dashboard_snapshot() {
