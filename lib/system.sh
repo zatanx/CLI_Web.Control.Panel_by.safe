@@ -201,7 +201,7 @@ serverctl_update_source() {
   require_root
   has_command git || die 'Git is required to update serverctl from GitHub.' "$EXIT_SYSTEM"
 
-  local source_dir remote branch old_revision new_revision file dashboard_dir
+  local source_dir remote branch old_revision new_revision file dashboard_dir sudoers_file
   source_dir=$(serverctl_source_dir)
   [[ -f "$source_dir/bin/serverctl" && -d "$source_dir/lib" ]] || die "Invalid serverctl source directory: $source_dir" "$EXIT_VALIDATION"
 
@@ -225,6 +225,12 @@ serverctl_update_source() {
   run_cmd install -d -m 0755 "$(root_path /opt/serverctl/bin)" "$(root_path /opt/serverctl/lib)"
   run_cmd install -m 0755 "$source_dir/bin/serverctl" "$(root_path /opt/serverctl/bin/serverctl)"
   run_cmd install -m 0644 "$source_dir"/lib/*.sh "$(root_path /opt/serverctl/lib)/"
+  if [[ -f "$source_dir/etc/sudoers.d/serverctl" ]]; then
+    sudoers_file="$(root_path /etc/sudoers.d/serverctl)"
+    run_cmd visudo -cf "$source_dir/etc/sudoers.d/serverctl"
+    run_cmd install -d -m 0755 "$(dirname "$sudoers_file")"
+    run_cmd install -m 0440 "$source_dir/etc/sudoers.d/serverctl" "$sudoers_file"
+  fi
   if [[ -d "$source_dir/dashboard" ]]; then
     dashboard_dir="$(root_path /opt/serverctl/dashboard)"
     run_cmd install -d -m 0755 -o root -g root "$dashboard_dir"
