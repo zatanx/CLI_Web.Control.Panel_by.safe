@@ -19,7 +19,7 @@ assert_true() { local name=$1; shift; if "$@"; then pass "$name"; else fail_test
 assert_false() { local name=$1; shift; if "$@"; then fail_test "$name"; else pass "$name"; fi; }
 assert_file_contains() { local name=$1 file=$2 pattern=$3; if grep -Eq "$pattern" "$file"; then pass "$name"; else fail_test "$name"; fi; }
 
-[[ "$SERVERCTL_VERSION" == 1.1.7 && "$SERVERCTL_RELEASE_DATE" == 2026-08-16 ]] && pass 'serverctl version metadata is defined' || fail_test 'serverctl version metadata is defined'
+[[ "$SERVERCTL_VERSION" == 1.1.8 && "$SERVERCTL_RELEASE_DATE" == 2026-08-16 ]] && pass 'serverctl version metadata is defined' || fail_test 'serverctl version metadata is defined'
 assert_file_contains 'Dashboard Fail2Ban read access is sudoers allow-listed' "$PROJECT_DIR/etc/sudoers.d/serverctl" 'dashboard fail2ban'
 assert_true 'valid apex domain' validate_domain example.com
 assert_true 'valid subdomain' validate_domain erp.company.co.th

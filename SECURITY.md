@@ -1,5 +1,7 @@
 # Security
 
+Documentation version: v1.1.8 (2026-08-16)
+
 ## Defaults
 
 - UFW denies incoming traffic except the detected SSH port, 80, and 443.
@@ -18,3 +20,44 @@ The sudo policy grants the `serverctl-admin` group only the immutable root-owned
 Before production, verify AppArmor profiles, external firewall policy, SSH allow-lists, application CSP needs, file ownership, exposed ports, alerts, and off-host backups for the actual environment.
 
 `sudo serverctl security ssh harden` disables root login. Add `--disable-password` only while connected through the intended non-root sudo account with a verified `authorized_keys` file. Keep the current session open and prove a second key-based login before disconnecting; serverctl validates `sshd` and rolls back a failed reload, but it cannot prove that a remote key works end to end.
+
+## Bot Protection
+
+Dashboard login protection supports Google reCAPTCHA v3 and Cloudflare Turnstile. The selected provider and keys are stored in the protected server configuration; the Secret Key is never displayed in the Dashboard.
+
+Login from localhost or a private/LAN IP bypasses the bot challenge. Login through a domain uses the configured challenge. Five failed logins from one IP within ten minutes trigger the Dashboard Fail2Ban jail, which blocks the IP with UFW for one hour.
+
+Review blocked addresses in the Dashboard `Fail2Ban` menu or with `sudo serverctl fail2ban list`. Token verification requires outbound HTTPS access to the selected provider.
+
+---
+
+# ความปลอดภัย
+
+เวอร์ชันเอกสาร: v1.1.8 (16-08-2026)
+
+## ค่าเริ่มต้น
+
+- UFW ปฏิเสธการเชื่อมต่อขาเข้าทั้งหมด ยกเว้น port SSH ที่ตรวจพบ, 80 และ 443
+- MariaDB bind ที่ `127.0.0.1` ลบบัญชี anonymous, รายการ root จากระยะไกล และฐานข้อมูล test
+- Fail2Ban เปิดใช้งาน `sshd`, `nginx-http-auth`, `nginx-limit-req` และการป้องกัน Login ของ Dashboard หาก Login Dashboard ผิดจาก IP เดียวกัน 5 ครั้งภายใน 10 นาที จะบล็อก IP ด้วย UFW เป็นเวลา 1 ชั่วโมง
+- PHP ปิดการแสดง error, URL include และการเปิดเผยข้อมูล พร้อมเปิดใช้ secure session cookie และ strict session mode
+- Nginx บล็อก dotfile, `.env`, metadata ของ repository, ไฟล์ SQL/log และการประมวลผล PHP ใต้ directory สำหรับ upload/file
+- ไม่กำหนดสิทธิ์ directory ของเว็บไซต์เป็น mode `777`
+
+เรียกใช้ `sudo serverctl security scan` การตรวจสอบ PHP ที่น่าสงสัยและ permission จะแจ้งผลเท่านั้น จะไม่ลบหรือซ่อมไฟล์โดยอัตโนมัติ ควรใช้ pattern ที่พบเป็นเบาะแส ไม่ใช่หลักฐานยืนยันว่าถูกโจมตี
+
+Audit log อยู่ที่ `/var/log/serverctl/audit.log` บันทึกเวลา, local user, ที่อยู่ SSH ต้นทาง, action, ผลลัพธ์ และรายละเอียดที่ไม่อ่อนไหว ห้ามส่ง secret เป็น command-line argument
+
+นโยบาย sudo อนุญาตให้กลุ่ม `serverctl-admin` เรียกใช้เฉพาะ entry point ที่เป็นของ root และแก้ไขไม่ได้ ควรให้ `/opt/serverctl`, modules และ `/etc/serverctl` เป็นของ root และไม่ให้ group เขียนได้
+
+ก่อนใช้งานจริงให้ตรวจสอบ AppArmor profile, firewall ภายนอก, SSH allow-list, ความต้องการ CSP ของแอปพลิเคชัน, ownership ของไฟล์, port ที่เปิด, ระบบแจ้งเตือน และ backup นอกเครื่องให้เหมาะกับสภาพแวดล้อมจริง
+
+คำสั่ง `sudo serverctl security ssh harden` จะปิดการ Login ของ root ให้เพิ่ม `--disable-password` เฉพาะขณะเชื่อมต่อผ่าน sudo account ที่ไม่ใช่ root และตรวจสอบไฟล์ `authorized_keys` แล้วเท่านั้น ให้เปิด session ปัจจุบันไว้และทดสอบการ Login ด้วย key จาก session ที่สองก่อนตัดการเชื่อมต่อ serverctl จะตรวจสอบ `sshd` และ rollback หาก reload ไม่สำเร็จ แต่ไม่สามารถยืนยันการใช้งาน key จากระยะไกลได้ครบทุกขั้นตอน
+
+## Bot Protection
+
+การป้องกันหน้า Login ของ Dashboard รองรับ Google reCAPTCHA v3 และ Cloudflare Turnstile Provider และ key ที่เลือกจะเก็บไว้ใน configuration ของ server ที่มีการป้องกัน โดยจะไม่แสดง Secret Key ใน Dashboard
+
+การ Login ผ่าน localhost หรือ Private/LAN IP จะไม่เรียก Bot challenge ส่วนการ Login ผ่าน domain จะใช้ challenge ตามที่ตั้งค่าไว้ หาก IP เดียวกัน Login ผิด 5 ครั้งภายใน 10 นาที Fail2Ban jail ของ Dashboard จะทำงานและบล็อก IP ด้วย UFW เป็นเวลา 1 ชั่วโมง
+
+ตรวจสอบรายการ IP ที่ถูกบล็อกได้ที่ Dashboard เมนู `Fail2Ban` หรือใช้ `sudo serverctl fail2ban list` การยืนยัน token ต้องให้ server เชื่อมต่อ HTTPS ออกไปยัง Provider ที่เลือก
