@@ -201,7 +201,7 @@ SQL
 
 configure_firewall() {
   local ssh_port
-  ssh_port=$(sshd -T 2>/dev/null | awk '/^port / {print $2; exit}'); ssh_port=${ssh_port:-22}
+  ssh_port=$(sshd -T 2>/dev/null | awk '/^port / && !port {port=$2} END {if (port) print port}'); ssh_port=${ssh_port:-22}
   ufw default deny incoming
   ufw default allow outgoing
   ufw allow "$ssh_port/tcp" comment SSH
