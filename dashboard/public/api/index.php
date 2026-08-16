@@ -16,6 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         if ($resource === 'websites') {
             dashboard_json_response(dashboard_json_command('websites'));
         }
+        if ($resource === 'fail2ban') {
+            dashboard_json_response(dashboard_json_command('fail2ban'));
+        }
         if ($resource === 'events') {
             dashboard_json_response(['status' => 'success', 'data' => dashboard_recent_events()]);
         }

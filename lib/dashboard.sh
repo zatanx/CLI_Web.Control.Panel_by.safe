@@ -169,6 +169,37 @@ dashboard_snapshot() {
     "$(dashboard_json_string "$bot_site_key")" "$(dashboard_json_string "$bot_secret_configured")"
 }
 
+dashboard_fail2ban() {
+  require_root
+  local summary jail_list jail jail_status current_raw banned_line ip total=0 first_jail=1 first_ip
+  local jails_json='' ips_json=''
+  local -a ip_values=()
+  if ! has_command fail2ban-client || ! service_is_active fail2ban; then
+    printf '{"status":"success","data":{"service":"stopped","total_banned":0,"jails":[]}}\n'
+    return 0
+  fi
+  summary=$(fail2ban-client status 2>/dev/null || true)
+  jail_list=$(sed -n 's/.*Jail list:[[:space:]]*//p' <<< "$summary" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  while IFS= read -r jail; do
+    [[ -n "$jail" ]] || continue
+    jail_status=$(fail2ban-client status "$jail" 2>/dev/null || true)
+    current_raw=$(sed -n 's/.*Currently banned:[[:space:]]*//p' <<< "$jail_status" | head -1)
+    [[ "$current_raw" =~ ^[0-9]+$ ]] || current_raw=0
+    total=$((total + current_raw))
+    banned_line=$(sed -n 's/.*Banned IP list:[[:space:]]*//p' <<< "$jail_status" | head -1)
+    ips_json=''; first_ip=1; ip_values=()
+    read -r -a ip_values <<< "$banned_line" || true
+    for ip in "${ip_values[@]}"; do
+      if ((first_ip)); then first_ip=0; else ips_json+=','; fi
+      ips_json+="$(dashboard_json_string "$ip")"
+    done
+    if ((first_jail)); then first_jail=0; else jails_json+=','; fi
+    jails_json+=$(printf '{"name":%s,"currently_banned":%s,"banned_ips":[%s]}' \
+      "$(dashboard_json_string "$jail")" "$current_raw" "$ips_json")
+  done <<< "$jail_list"
+  printf '{"status":"success","data":{"service":"running","total_banned":%s,"jails":[%s]}}\n' "$total" "$jails_json"
+}
+
 dashboard_websites() {
   require_root
   local record domain status ssl php root days first=1
@@ -387,11 +418,12 @@ cmd_dashboard() {
     status) (($# == 0)) || die 'dashboard status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_status ;;
     snapshot) (($# == 0)) || die 'dashboard snapshot accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_snapshot ;;
     websites) (($# == 0)) || die 'dashboard websites accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_websites ;;
+    fail2ban) (($# == 0)) || die 'dashboard fail2ban accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_fail2ban ;;
     logs) dashboard_logs "$@" ;;
     action) dashboard_action "$@" ;;
     bot-protection) dashboard_bot_protection "$@" ;;
     install) dashboard_install "$@" ;;
     uninstall) dashboard_uninstall "$@" ;;
-    *) die 'Usage: serverctl dashboard <status|snapshot|websites|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
+    *) die 'Usage: serverctl dashboard <status|snapshot|websites|fail2ban|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }

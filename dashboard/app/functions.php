@@ -5,7 +5,7 @@ require_once __DIR__ . '/csrf.php';
 
 function dashboard_command(string $operation, array $arguments = [], bool $assume_yes = false): array
 {
-    $read_operations = ['snapshot', 'websites'];
+    $read_operations = ['snapshot', 'websites', 'fail2ban'];
     if (!in_array($operation, $read_operations, true) && $operation !== 'logs' && $operation !== 'action') {
         throw new RuntimeException('Dashboard operation is not allowed.');
     }

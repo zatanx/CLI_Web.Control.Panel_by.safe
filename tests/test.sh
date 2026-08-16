@@ -19,7 +19,7 @@ assert_true() { local name=$1; shift; if "$@"; then pass "$name"; else fail_test
 assert_false() { local name=$1; shift; if "$@"; then fail_test "$name"; else pass "$name"; fi; }
 assert_file_contains() { local name=$1 file=$2 pattern=$3; if grep -Eq "$pattern" "$file"; then pass "$name"; else fail_test "$name"; fi; }
 
-[[ "$SERVERCTL_VERSION" == 1.1.1 && "$SERVERCTL_RELEASE_DATE" == 2026-08-16 ]] && pass 'serverctl version metadata is defined' || fail_test 'serverctl version metadata is defined'
+[[ "$SERVERCTL_VERSION" == 1.1.2 && "$SERVERCTL_RELEASE_DATE" == 2026-08-16 ]] && pass 'serverctl version metadata is defined' || fail_test 'serverctl version metadata is defined'
 assert_true 'valid apex domain' validate_domain example.com
 assert_true 'valid subdomain' validate_domain erp.company.co.th
 assert_true 'accepts localhost site name' validate_site_name localhost
@@ -139,6 +139,8 @@ dashboard_snapshot_output=$(dashboard_snapshot)
 [[ "$dashboard_snapshot_output" == '{"status":"success","data":{'* ]] && pass 'Dashboard snapshot returns structured JSON' || fail_test 'Dashboard snapshot returns structured JSON'
 dashboard_websites_output=$(dashboard_websites)
 [[ "$dashboard_websites_output" == '{"status":"success","data":['* ]] && pass 'Dashboard website endpoint returns structured JSON' || fail_test 'Dashboard website endpoint returns structured JSON'
+dashboard_fail2ban_output=$(dashboard_fail2ban)
+[[ "$dashboard_fail2ban_output" == '{"status":"success","data":{"service":'* ]] && pass 'Dashboard Fail2Ban endpoint returns structured JSON' || fail_test 'Dashboard Fail2Ban endpoint returns structured JSON'
 if dashboard_action not-allowed >/dev/null 2>&1; then
   fail_test 'Dashboard action dispatcher rejects unlisted actions'
 else

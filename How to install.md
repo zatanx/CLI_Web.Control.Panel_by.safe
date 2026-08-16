@@ -160,6 +160,8 @@ See [DASHBOARD.md](DASHBOARD.md) for the Dashboard security model and uninstall 
 
 หาก Login ผิดครบ 5 ครั้งภายใน 10 นาที ระบบจะล็อกการ Login และ Fail2Ban จะบล็อก IP ด้วย UFW เป็นเวลา 1 ชั่วโมง
 
+รายการ IP ที่ถูกบล็อกดูได้ที่ Dashboard เมนู `Fail2Ban` หรือใช้คำสั่ง `sudo serverctl fail2ban list`
+
 หมายเหตุ: Bot Protection ต้องให้ Server เชื่อมต่อ HTTPS ออกไปยังบริการของ Google หรือ Cloudflare เพื่อยืนยัน token หากระบบปิดไม่มี Internet ให้เลือก `Disabled`
 
 ### เข้าเมนูหลัก 

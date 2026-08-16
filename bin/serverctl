@@ -70,6 +70,7 @@ Commands:
   update history|health|reboot-status
   version                              Show serverctl version
   dashboard status|snapshot|websites
+  dashboard fail2ban
   dashboard bot-protection status|set PROVIDER SITE_KEY --secret SECRET
   dashboard logs TYPE [LINES] [SEARCH]
   dashboard action ACTION [TARGET]

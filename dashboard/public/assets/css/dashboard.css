@@ -121,6 +121,7 @@ label { color: var(--muted); display: block; font-size: 12px; font-weight: 600; 
 input, select { display: block; width: 100%; border: 1px solid #dbe3ee; border-radius: 7px; color: var(--ink); background: white; margin-top: 7px; outline: none; padding: 11px 12px; }
 input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
 .log-viewer { min-height: 270px; max-height: 520px; overflow: auto; margin: 0; padding: 16px; border-radius: 8px; color: #dce7f8; background: #111d31; font: 11px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+.ip-list { word-break: break-word; }
 .alert-list { margin-bottom: 16px; }
 .alert { border-radius: 8px; font-size: 12px; margin-bottom: 8px; padding: 11px 14px; }
 .alert-danger { color: #a33243; background: var(--red-soft); border: 1px solid #f2c8cf; }
