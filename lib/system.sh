@@ -177,9 +177,12 @@ cmd_update() {
 }
 
 SERVERCTL_REPOSITORY_NAME="CLI_Web.Control.Panel_by.safe"
+SERVERCTL_REPOSITORY_URL="https://github.com/zatanx/CLI_Web.Control.Panel_by.safe.git"
+SERVERCTL_BOOTSTRAP_SOURCE_DIR="$STATE_DIR/source"
 
 serverctl_source_dir() {
-  local candidate current git_root
+  local candidate current git_root allow_missing=0
+  [[ "${1:-}" == --allow-missing ]] && allow_missing=1
   if [[ -n "$SERVERCTL_SOURCE_DIR" ]]; then
     git_root=$(git -C "$SERVERCTL_SOURCE_DIR" rev-parse --show-toplevel 2>/dev/null || true)
     [[ -n "$git_root" ]] || die "Configured serverctl source directory is not a Git repository: $SERVERCTL_SOURCE_DIR" "$EXIT_VALIDATION"
@@ -194,13 +197,36 @@ serverctl_source_dir() {
     return 0
   fi
 
-  candidate=$(find /home /root -maxdepth 3 -type d -name "$SERVERCTL_REPOSITORY_NAME" -print -quit 2>/dev/null || true)
+  for candidate in "$SERVERCTL_BOOTSTRAP_SOURCE_DIR" /opt/serverctl/source; do
+    if [[ -d "$candidate" ]] && git -C "$candidate" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      printf '%s' "$(git -C "$candidate" rev-parse --show-toplevel)"
+      return 0
+    fi
+  done
+
+  candidate=$(find /home /root -maxdepth 4 -type d -name "$SERVERCTL_REPOSITORY_NAME" -print -quit 2>/dev/null || true)
   if [[ -n "$candidate" ]] && git -C "$candidate" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     printf '%s' "$(git -C "$candidate" rev-parse --show-toplevel)"
     return 0
   fi
 
+  ((allow_missing)) && return "$EXIT_VALIDATION"
   die "Could not find $SERVERCTL_REPOSITORY_NAME. Set SERVERCTL_SOURCE_DIR in /etc/serverctl/serverctl.conf." "$EXIT_VALIDATION"
+}
+
+serverctl_prepare_source() {
+  local source_dir
+  if source_dir=$(serverctl_source_dir --allow-missing); then
+    printf '%s' "$source_dir"
+    return 0
+  fi
+
+  source_dir="$SERVERCTL_BOOTSTRAP_SOURCE_DIR"
+  [[ ! -e "$source_dir" ]] || die "The automatic update source path exists but is not a Git repository: $source_dir" "$EXIT_VALIDATION"
+  info "No local serverctl source found; cloning $SERVERCTL_REPOSITORY_URL" >&2
+  run_cmd install -d -m 0750 "$STATE_DIR" >&2
+  run_cmd git clone --branch main --single-branch --depth 1 "$SERVERCTL_REPOSITORY_URL" "$source_dir" >&2
+  printf '%s' "$source_dir"
 }
 
 serverctl_update_source() {
@@ -208,7 +234,7 @@ serverctl_update_source() {
   has_command git || die 'Git is required to update serverctl from GitHub.' "$EXIT_SYSTEM"
 
   local source_dir remote branch old_revision new_revision file dashboard_dir dashboard_state sudoers_file
-  source_dir=$(serverctl_source_dir)
+  source_dir=$(serverctl_prepare_source)
   [[ -f "$source_dir/bin/serverctl" && -d "$source_dir/lib" ]] || die "Invalid serverctl source directory: $source_dir" "$EXIT_VALIDATION"
 
   branch=$(git -C "$source_dir" symbolic-ref --short HEAD 2>/dev/null || true)
