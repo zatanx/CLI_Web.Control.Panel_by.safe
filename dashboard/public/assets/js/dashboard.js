@@ -194,6 +194,120 @@
         } catch (error) { showToast(error.message, true); }
     };
 
+    let cronJobs = [];
+    const cronForm = qs('[data-cron-form]');
+    const cronSchedule = qs('[data-cron-schedule]');
+    const cronCustomSchedule = qs('[data-cron-custom-schedule]');
+    const cronEditId = qs('[data-cron-edit-id]');
+    const cronFormTitle = qs('[data-cron-form-title]');
+    const cronCancel = qs('[data-cron-cancel]');
+
+    const cronScheduleValue = () => cronSchedule?.value === 'custom' ? (cronCustomSchedule?.value || '').trim() : (cronSchedule?.value || '');
+    const syncCronSchedule = () => { if (cronCustomSchedule) cronCustomSchedule.hidden = cronSchedule?.value !== 'custom'; };
+    cronSchedule?.addEventListener('change', syncCronSchedule);
+
+    const renderCronDetails = async (job) => {
+        const panel = qs('[data-cron-details]');
+        if (!panel) return;
+        panel.hidden = false;
+        setText('[data-cron-detail-description]', job.description || 'No description');
+        setText('[data-cron-detail-user]', `${job.id} / ${job.user}`);
+        setText('[data-cron-detail-status]', job.status);
+        setText('[data-cron-detail-schedule]', job.schedule);
+        setText('[data-cron-detail-command]', job.command);
+        setText('[data-cron-detail-last]', `${job.last_run || '—'} / ${job.last_exit_code || '—'}`);
+        setText('[data-cron-detail-next]', job.next_run || '—');
+        try {
+            const result = await apiGet('cron-logs', { id: String(job.id), limit: '100' });
+            setText('[data-cron-logs]', (result.data || []).join('\n') || 'No log entries.');
+        } catch (error) { setText('[data-cron-logs]', error.message); }
+    };
+
+    const beginCronEdit = (job) => {
+        if (job.type !== 'website') { showToast('Only Website Cron jobs can be edited in the Dashboard.', true); return; }
+        if (cronEditId) cronEditId.value = String(job.id);
+        if (cronFormTitle) cronFormTitle.textContent = `Edit Website Cron Job #${job.id}`;
+        if (cronCancel) cronCancel.hidden = false;
+        if (qs('[data-cron-website]')) qs('[data-cron-website]').value = job.website || '';
+        if (qs('[data-cron-script]')) qs('[data-cron-script]').value = (job.command || '').split(' ').pop() || '';
+        if (qs('[data-cron-description]')) qs('[data-cron-description]').value = job.description || '';
+        if (qs('[data-cron-enabled]')) qs('[data-cron-enabled]').checked = job.enabled === 'yes';
+        const preset = [...(cronSchedule?.options || [])].find((option) => option.value === job.schedule);
+        if (cronSchedule) cronSchedule.value = preset ? job.schedule : 'custom';
+        if (cronCustomSchedule) cronCustomSchedule.value = preset ? '' : job.schedule;
+        syncCronSchedule();
+        cronForm?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    const resetCronForm = () => {
+        cronForm?.reset();
+        if (cronEditId) cronEditId.value = '';
+        if (cronFormTitle) cronFormTitle.textContent = 'Add Website Cron Job';
+        if (cronSchedule) cronSchedule.value = '*/5 * * * *';
+        if (cronCancel) cronCancel.hidden = true;
+        syncCronSchedule();
+    };
+
+    const renderCron = (data, status) => {
+        cronJobs = Array.isArray(data.jobs) ? data.jobs : [];
+        const summary = data.summary || {};
+        qsa('[data-cron-summary]').forEach((element) => { element.textContent = String(summary[element.dataset.cronSummary] ?? 0); });
+        const service = status?.service ? `${String(status.service).toUpperCase()}: ${String(status.state || 'stopped').toUpperCase()}` : 'Unavailable';
+        setText('[data-cron-service]', service);
+        const root = qs('[data-cron-jobs]');
+        if (!root) return;
+        root.replaceChildren();
+        if (!cronJobs.length) { root.innerHTML = '<tr><td colspan="6" class="empty-state">No Cron jobs configured.</td></tr>'; return; }
+        cronJobs.forEach((job) => {
+            const row = document.createElement('tr');
+            [job.id, job.user, job.schedule, job.status, job.last_run || '—'].forEach((value) => { const cell = document.createElement('td'); cell.textContent = escapeText(value); row.appendChild(cell); });
+            const actions = document.createElement('td'); actions.className = 'cron-actions';
+            const addAction = (label, action, danger = false) => { const button = document.createElement('button'); button.type = 'button'; button.className = `button ${danger ? 'button-danger' : 'button-secondary'} button-small`; button.textContent = label; button.dataset.cronAction = action; button.dataset.cronId = String(job.id); actions.appendChild(button); };
+            addAction('View', 'view');
+            if (job.type === 'website') addAction('Edit', 'edit');
+            addAction(job.enabled === 'yes' ? 'Disable' : 'Enable', job.enabled === 'yes' ? 'disable' : 'enable');
+            addAction('Run Now', 'run');
+            addAction('Delete', 'delete', true);
+            row.appendChild(actions); root.appendChild(row);
+        });
+    };
+
+    const loadCron = async () => {
+        try { const [jobs, status] = await Promise.all([apiGet('cron'), apiGet('cron-status')]); renderCron(jobs.data || {}, status.data || {}); }
+        catch (error) { showToast(error.message, true); }
+    };
+
+    qs('[data-cron-detail-close]')?.addEventListener('click', () => { const panel = qs('[data-cron-details]'); if (panel) panel.hidden = true; });
+    qs('[data-cron-refresh]')?.addEventListener('click', loadCron);
+    cronCancel?.addEventListener('click', resetCronForm);
+    qs('[data-cron-jobs]')?.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-cron-action]');
+        if (!button) return;
+        const job = cronJobs.find((item) => String(item.id) === button.dataset.cronId);
+        if (!job) return;
+        const action = button.dataset.cronAction;
+        if (action === 'view') { await renderCronDetails(job); return; }
+        if (action === 'edit') { beginCronEdit(job); return; }
+        const apiAction = `cron-${action}`;
+        const message = action === 'delete' ? 'This Cron job will be permanently removed. Continue?' : action === 'run' ? 'Run this trusted Cron job now?' : `${action[0].toUpperCase()}${action.slice(1)} this Cron job?`;
+        if (!(await showConfirmModal(message))) return;
+        button.disabled = true;
+        try { await apiPost(apiAction, button.dataset.cronId, true); showToast('Cron action completed.'); await loadCron(); }
+        catch (error) { showToast(error.message, true); }
+        finally { button.disabled = false; }
+    });
+    cronForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const id = cronEditId?.value || '';
+        const extra = { website: qs('[data-cron-website]')?.value.trim() || '', schedule: cronScheduleValue(), script: qs('[data-cron-script]')?.value.trim() || '', description: qs('[data-cron-description]')?.value.trim() || '', enabled: qs('[data-cron-enabled]')?.checked ? 'yes' : 'no' };
+        if (!extra.schedule || !extra.website || !extra.script) { showToast('Website, schedule and script are required.', true); return; }
+        const action = id ? 'cron-edit-website' : 'cron-add-website';
+        if (!(await showConfirmModal(id ? 'Save changes to this Cron job?' : 'Create this Website Cron job?'))) return;
+        try { await apiPost(action, id, true, extra); showToast('Cron job saved.'); resetCronForm(); await loadCron(); }
+        catch (error) { showToast(error.message, true); }
+    });
+    syncCronSchedule();
+
     const renderFail2ban = (data) => {
         setText('[data-fail2ban-total]', data.total_banned ?? 0);
         const root = qs('[data-fail2ban-jails]');
@@ -225,7 +339,7 @@
     };
 
     qsa('[data-section]').forEach((link) => link.addEventListener('click', (event) => {
-        event.preventDefault(); const section = link.dataset.section; qsa('[data-section]').forEach((item) => item.classList.toggle('is-active', item === link)); qsa('[data-panel]').forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === section)); qs('#page-title').textContent = section === 'dashboard' ? 'Dashboard Overview' : section.replace('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); qs('#sidebar')?.classList.remove('open'); if (section === 'websites') loadWebsites(); if (section === 'fail2ban') loadFail2ban();
+        event.preventDefault(); const section = link.dataset.section; qsa('[data-section]').forEach((item) => item.classList.toggle('is-active', item === link)); qsa('[data-panel]').forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === section)); qs('#page-title').textContent = section === 'dashboard' ? 'Dashboard Overview' : section.replace('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); qs('#sidebar')?.classList.remove('open'); if (section === 'websites') loadWebsites(); if (section === 'fail2ban') loadFail2ban(); if (section === 'cron') loadCron();
     }));
     const botProvider = qs('[data-bot-provider]');
     const botSiteKey = qs('[data-bot-site-key]');

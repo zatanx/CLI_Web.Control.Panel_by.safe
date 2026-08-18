@@ -31,6 +31,30 @@ browser confirmation, and an audit entry. Sessions use secure, HttpOnly,
 SameSite=Strict cookies and expire after 30 minutes of inactivity. Login is
 limited to five failures per 15 minutes per source IP.
 
+## Cron Jobs
+
+Cron Jobs are managed by the shared Cron module used by both the CLI and
+Dashboard. The Dashboard creates Website Cron jobs from a website, schedule,
+and script filename; it never accepts a command for direct execution. Run,
+enable, disable, edit, and delete actions are ID-based, confirmed, CSRF
+protected, permission checked, and audited.
+
+The CLI also supports System Cron and read-only inspection of the host Cron
+directories:
+
+```text
+sudo serverctl cron list
+sudo serverctl cron website add example.com --schedule "*/5 * * * *" --script cron.php
+sudo serverctl cron system
+sudo serverctl cron status
+```
+
+Managed configuration is stored under `/var/lib/serverctl/cron/` and rendered
+to `/etc/cron.d/serverctl-cron-*` or `/etc/cron.d/serverctl-websites`. Jobs use
+the root-owned `/usr/local/libexec/serverctl-cron-run` helper, a per-job lock,
+a 300-second timeout, bounded output, audit records, and rotated logs under
+`/var/log/serverctl/cron/`.
+
 ## Remove
 
 ```text

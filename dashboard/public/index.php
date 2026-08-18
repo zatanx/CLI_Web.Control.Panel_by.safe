@@ -39,6 +39,7 @@ $user = (string) ($_SESSION['user'] ?? 'admin');
             </details>
             <a class="nav-item" href="#bot-protection" data-section="bot-protection"><span class="nav-icon">B</span>Bot Protection</a>
             <a class="nav-item" href="#logs" data-section="logs"><span class="nav-icon">▤</span>Logs</a>
+            <a class="nav-item" href="#cron" data-section="cron"><span class="nav-icon">◷</span>Cron Jobs</a>
             <a class="nav-item" href="#backup" data-section="backup"><span class="nav-icon">▣</span>Backup</a>
             <a class="nav-item" href="#updates" data-section="updates"><span class="nav-icon">↻</span>System Update</a>
             <a class="nav-item" href="#settings" data-section="settings"><span class="nav-icon">⚙</span>Settings</a>
@@ -90,6 +91,39 @@ $user = (string) ($_SESSION['user'] ?? 'admin');
             </section>
 
             <section class="dashboard-section" data-panel="websites"><div class="section-heading"><div><h2>Websites</h2><p class="muted">Registered websites, PHP versions and certificate state.</p></div></div><section class="panel"><div class="table-wrap"><table><thead><tr><th>Domain</th><th>Status</th><th>HTTPS</th><th>PHP</th><th>SSL days</th><th>Document root</th></tr></thead><tbody data-websites><tr><td colspan="6" class="empty-state">Loading…</td></tr></tbody></table></div></section></section>
+            <section class="dashboard-section" data-panel="cron">
+                <div class="section-heading"><div><h2>Cron Jobs</h2><p class="muted">Validated, ID-based scheduled tasks. Website jobs run as the website owner.</p></div><span class="health-badge" data-cron-service>Unknown</span></div>
+                <div class="status-grid status-grid-four summary-cards cron-summary">
+                    <article class="status-card summary-card"><span>Total jobs</span><strong data-cron-summary="total">0</strong><small>Managed jobs</small></article>
+                    <article class="status-card summary-card"><span>Enabled</span><strong data-cron-summary="enabled">0</strong><small>Active schedules</small></article>
+                    <article class="status-card summary-card"><span>Disabled</span><strong data-cron-summary="disabled">0</strong><small>Preserved jobs</small></article>
+                    <article class="status-card summary-card"><span>Failed recently</span><strong data-cron-summary="failed_recently">0</strong><small>Failed or timed out</small></article>
+                </div>
+                <div class="two-column cron-layout">
+                    <section class="panel">
+                        <div class="panel-heading"><div><h3>Managed jobs</h3><p class="muted">Run, pause, inspect or remove a job by its trusted ID.</p></div><button class="button button-ghost" type="button" data-cron-refresh>Refresh</button></div>
+                        <div class="table-wrap"><table><thead><tr><th>ID</th><th>User</th><th>Schedule</th><th>Status</th><th>Last run</th><th>Actions</th></tr></thead><tbody data-cron-jobs><tr><td colspan="6" class="empty-state">Loading…</td></tr></tbody></table></div>
+                    </section>
+                    <section class="panel cron-form-panel">
+                        <h3 data-cron-form-title>Add Website Cron Job</h3>
+                        <p class="muted">The command is generated from the selected website and script filename.</p>
+                        <form data-cron-form>
+                            <input type="hidden" data-cron-edit-id value="">
+                            <label>Website<input type="text" data-cron-website maxlength="253" required placeholder="example.com"></label>
+                            <label>Schedule<select data-cron-schedule><option value="* * * * *">Every Minute</option><option value="*/5 * * * *" selected>Every 5 Minutes</option><option value="*/10 * * * *">Every 10 Minutes</option><option value="*/15 * * * *">Every 15 Minutes</option><option value="*/30 * * * *">Every 30 Minutes</option><option value="0 * * * *">Every Hour</option><option value="0 0 * * *">Every Day</option><option value="0 0 * * 0">Every Week</option><option value="0 0 1 * *">Every Month</option><option value="custom">Custom Cron Expression</option></select><input type="text" data-cron-custom-schedule maxlength="100" placeholder="*/5 * * * *" hidden></label>
+                            <label>Script filename<input type="text" data-cron-script maxlength="128" required placeholder="cron.php"></label>
+                            <label>Description<input type="text" data-cron-description maxlength="200" placeholder="Process orders"></label>
+                            <label class="checkbox-label"><input type="checkbox" data-cron-enabled checked> Enabled</label>
+                            <div><button class="button button-primary" type="submit">Save Cron Job</button><button class="button button-secondary" type="button" data-cron-cancel hidden>Cancel Edit</button></div>
+                        </form>
+                    </section>
+                </div>
+                <section class="panel cron-details-panel" data-cron-details hidden>
+                    <div class="panel-heading"><div><h3>Cron Job Details</h3><p class="muted" data-cron-detail-description>—</p></div><button class="button button-secondary" type="button" data-cron-detail-close>Close</button></div>
+                    <dl class="info-list"><div><dt>ID / User</dt><dd data-cron-detail-user>—</dd></div><div><dt>Status</dt><dd data-cron-detail-status>—</dd></div><div><dt>Schedule</dt><dd data-cron-detail-schedule>—</dd></div><div><dt>Command</dt><dd data-cron-detail-command>—</dd></div><div><dt>Last run / Exit code</dt><dd data-cron-detail-last>—</dd></div><div><dt>Next run</dt><dd data-cron-detail-next>—</dd></div></dl>
+                    <pre class="log-viewer" data-cron-logs>No log entries.</pre>
+                </section>
+            </section>
             <section class="dashboard-section" data-panel="nginx"><div class="section-heading"><div><h2>Nginx</h2><p class="muted">Configuration and service controls.</p></div></div><div class="action-grid"><div class="panel"><h3>Service status</h3><p class="large-status" data-section-service="nginx">—</p><button class="button button-secondary" type="button" data-action="nginx-reload">Reload Nginx</button><button class="button button-danger" type="button" data-action="nginx-restart" data-confirm="This will briefly interrupt connections. Continue?">Restart Nginx</button></div><div class="panel"><h3>Safe operation</h3><p class="muted">Every reload validates the Nginx configuration first. Administrative actions are confirmed, CSRF-protected and audited.</p></div></div></section>
             <section class="dashboard-section" data-panel="php-fpm"><div class="section-heading"><div><h2>PHP-FPM</h2><p class="muted">Runtime service status and default version.</p></div></div><div class="panel"><div class="detail-row"><span>Default version</span><strong data-php-version>—</strong></div><div class="detail-row"><span>Service</span><strong data-section-service="php_fpm">—</strong></div></div></section>
             <section class="dashboard-section" data-panel="mariadb"><div class="section-heading"><div><h2>MariaDB</h2><p class="muted">Database service health. Credentials are never displayed.</p></div></div><div class="panel"><div class="detail-row"><span>Service</span><strong data-section-service="mariadb">—</strong></div><div class="detail-row"><span>Registered databases</span><strong>Use CLI database list</strong></div></div></section>

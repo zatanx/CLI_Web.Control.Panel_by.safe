@@ -19,6 +19,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         if ($resource === 'fail2ban') {
             dashboard_json_response(dashboard_json_command('fail2ban'));
         }
+        if ($resource === 'cron') {
+            dashboard_json_response(dashboard_json_command('cron'));
+        }
+        if ($resource === 'cron-status') {
+            dashboard_json_response(dashboard_json_command('cron-status'));
+        }
+        if ($resource === 'cron-logs') {
+            $id = (string) ($_GET['id'] ?? '');
+            $limit = (string) ($_GET['limit'] ?? '100');
+            dashboard_json_response(dashboard_json_command('cron-logs', [$id, $limit]));
+        }
         if ($resource === 'events') {
             dashboard_json_response(['status' => 'success', 'data' => dashboard_recent_events()]);
         }
@@ -55,17 +66,26 @@ $target = (string) ($_POST['target'] ?? '');
 $provider = (string) ($_POST['provider'] ?? '');
 $site_key = (string) ($_POST['site_key'] ?? '');
 $secret = (string) ($_POST['secret'] ?? '');
+$website = (string) ($_POST['website'] ?? '');
+$schedule = (string) ($_POST['schedule'] ?? '');
+$script = (string) ($_POST['script'] ?? '');
+$description = (string) ($_POST['description'] ?? '');
+$enabled = (string) ($_POST['enabled'] ?? 'yes');
 $requires_confirmation = in_array($action, [
     'nginx-restart', 'firewall-reload', 'backup-all', 'update-check',
     'fail2ban-unban', 'backup-restore', 'website-remove', 'database-remove', 'bot-protection-set',
+    'cron-add-website', 'cron-edit-website', 'cron-enable', 'cron-disable', 'cron-run', 'cron-delete',
 ], true);
 if ($requires_confirmation && (string) ($_POST['confirmed'] ?? '') !== '1') {
     dashboard_json_response(['status' => 'error', 'message' => 'Confirmation is required for this action.'], 409);
 }
 
-$arguments = $action === 'bot-protection-set'
-    ? [$action, $provider, $site_key, '--secret', $secret]
-    : ($target === '' ? [$action] : [$action, $target]);
+$arguments = match ($action) {
+    'bot-protection-set' => [$action, $provider, $site_key, '--secret', $secret],
+    'cron-add-website' => [$action, $website, $schedule, $script, $description, $enabled],
+    'cron-edit-website' => [$action, $target, $website, $schedule, $script, $description, $enabled],
+    default => ($target === '' ? [$action] : [$action, $target]),
+};
 try {
     $result = dashboard_command('action', $arguments, true);
     $success = $result['code'] === 0;

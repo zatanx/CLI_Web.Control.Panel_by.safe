@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+# This helper is installed root-owned and is referenced by generated cron
+# files.  It loads the trusted numeric job record and never accepts a command
+# argument from cron or from the web application.
+LIB_DIR=/opt/serverctl/lib
+source "$LIB_DIR/common.sh"
+source "$LIB_DIR/validators.sh"
+source "$LIB_DIR/registry.sh"
+source "$LIB_DIR/cron.sh"
+
+SERVERCTL_TEST_MODE=0
+cron_scheduled_run "${1:-}"

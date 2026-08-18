@@ -229,6 +229,31 @@ dashboard_websites() {
   printf ']}\n'
 }
 
+dashboard_cron() {
+  require_root
+  printf '{"status":"success","data":%s}\n' "$(cron_jobs_json)"
+}
+
+dashboard_cron_status() {
+  require_root
+  printf '{"status":"success","data":%s}\n' "$(cron_status_json)"
+}
+
+dashboard_cron_logs() {
+  require_root
+  local id=${1:-} lines=${2:-100} file line first=1
+  cron_valid_id "$id" || die 'Invalid Cron job ID.' "$EXIT_VALIDATION"
+  [[ "$lines" =~ ^(50|100|500)$ ]] || die 'Invalid Cron log limit.' "$EXIT_VALIDATION"
+  file=$(cron_log_path "$id")
+  printf '{"status":"success","data":['
+  if [[ -f "$file" ]]; then
+    while IFS= read -r line; do
+      ((first)) || printf ','; first=0; cron_json_string "$line"
+    done < <(tail -n "$lines" -- "$file")
+  fi
+  printf ']}\n'
+}
+
 dashboard_logs() {
   require_root
   local type=${1:-} lines=${2:-100} search=${3:-} file
@@ -261,6 +286,12 @@ dashboard_action() {
     database-remove) (($# == 1)) || die 'database-remove requires one database name.' "$EXIT_INVALID_ARGUMENT"; database_remove "$1" ;;
     update-check) (($# == 0)) || die 'update-check accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_check ;;
     bot-protection-set) (($# == 4 && "$3" == --secret)) || die 'bot-protection-set requires PROVIDER SITE_KEY --secret SECRET.' "$EXIT_INVALID_ARGUMENT"; dashboard_bot_protection_set "$1" "$2" "$4" ;;
+    cron-add-website) (($# == 5)) || die 'cron-add-website requires WEBSITE SCHEDULE SCRIPT DESCRIPTION ENABLED.' "$EXIT_INVALID_ARGUMENT"; add_cron_website_job "$1" "$2" "$3" "$4" "$5" ;;
+    cron-edit-website) (($# == 6)) || die 'cron-edit-website requires ID WEBSITE SCHEDULE SCRIPT DESCRIPTION ENABLED.' "$EXIT_INVALID_ARGUMENT"; update_cron_website_job "$1" "$2" "$3" "$4" "$5" "$6" ;;
+    cron-enable) (($# == 1)) || die 'cron-enable requires one ID.' "$EXIT_INVALID_ARGUMENT"; enable_cron_job "$1" ;;
+    cron-disable) (($# == 1)) || die 'cron-disable requires one ID.' "$EXIT_INVALID_ARGUMENT"; disable_cron_job "$1" ;;
+    cron-run) (($# == 1)) || die 'cron-run requires one ID.' "$EXIT_INVALID_ARGUMENT"; run_cron_job "$1" ;;
+    cron-delete) (($# == 1)) || die 'cron-delete requires one ID.' "$EXIT_INVALID_ARGUMENT"; delete_cron_job "$1" ;;
     *) die 'Unknown or disallowed dashboard action.' "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }
@@ -430,11 +461,14 @@ cmd_dashboard() {
     snapshot) (($# == 0)) || die 'dashboard snapshot accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_snapshot ;;
     websites) (($# == 0)) || die 'dashboard websites accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_websites ;;
     fail2ban) (($# == 0)) || die 'dashboard fail2ban accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_fail2ban ;;
+    cron) (($# == 0)) || die 'dashboard cron accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron ;;
+    cron-status) (($# == 0)) || die 'dashboard cron-status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron_status ;;
+    cron-logs) (($# == 2)) || die 'dashboard cron-logs requires ID and line limit.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron_logs "$@" ;;
     logs) dashboard_logs "$@" ;;
     action) dashboard_action "$@" ;;
     bot-protection) dashboard_bot_protection "$@" ;;
     install) dashboard_install "$@" ;;
     uninstall) dashboard_uninstall "$@" ;;
-    *) die 'Usage: serverctl dashboard <status|snapshot|websites|fail2ban|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
+    *) die 'Usage: serverctl dashboard <status|snapshot|websites|fail2ban|cron|cron-status|cron-logs|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }

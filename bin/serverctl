@@ -18,7 +18,7 @@ else
   LIB_DIR="/opt/serverctl/lib"
 fi
 
-for library in common validators registry render website php ssl database backup sftp security nginx system dashboard menu; do
+for library in common validators registry render website php ssl database backup sftp security nginx system cron dashboard menu; do
   # shellcheck source=/dev/null
   source "$LIB_DIR/$library.sh"
 done
@@ -71,9 +71,11 @@ Commands:
   version                              Show serverctl version
   dashboard status|snapshot|websites
   dashboard fail2ban
+  dashboard cron|cron-status|cron-logs
   dashboard bot-protection status|set PROVIDER SITE_KEY --secret SECRET
   dashboard logs TYPE [LINES] [SEARCH]
   dashboard action ACTION [TARGET]
+  cron list|add|edit|enable|disable|run|delete|logs|validate|status|system|website
   dashboard install DOMAIN [--user USER] [--password-hash HASH]
   dashboard uninstall
   nginx status|test|reload|restart|stop|start
@@ -126,6 +128,7 @@ main() {
     fail2ban) cmd_fail2ban "$@" ;;
     update) cmd_update "$@" ;;
     dashboard) cmd_dashboard "$@" ;;
+    cron) cmd_cron "$@" ;;
     nginx) cmd_nginx "$@" ;;
     help|-h|--help) usage ;;
     *) error "Unknown command: $command"; usage; return "$EXIT_INVALID_ARGUMENT" ;;

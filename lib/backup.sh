@@ -79,6 +79,12 @@ backup_create_all() {
   mkdir -p "$stage/websites" "$stage/databases" "$stage/config"
   cp -a -- "$STATE_DIR" "$stage/config/state"
   for file in "$(root_path /etc/serverctl)" "$(root_path /etc/nginx)" "$(root_path /etc/php)" "$(root_path /etc/fail2ban)" "$(root_path /etc/ufw)"; do [[ -e "$file" ]] && cp -a -- "$file" "$stage/config/"; done
+  if [[ -d "$(root_path /etc/cron.d)" ]]; then
+    mkdir -p "$stage/config/cron.d"
+    shopt -s nullglob
+    for file in "$(root_path /etc/cron.d)"/serverctl-cron-* "$(root_path /etc/cron.d)/serverctl-websites"; do [[ -e "$file" ]] && cp -a -- "$file" "$stage/config/cron.d/"; done
+    shopt -u nullglob
+  fi
   shopt -s nullglob
   for file in "$STATE_DIR"/websites/*.conf; do
     domain=$(record_get "$file" DOMAIN)

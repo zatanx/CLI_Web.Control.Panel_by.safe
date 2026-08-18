@@ -121,6 +121,7 @@ install_packages() {
 
 install_serverctl() {
   install -d -m 0751 /opt/serverctl
+  install -d -m 0755 -o root -g root /usr/local/libexec
   install -d -m 0750 /opt/serverctl/bin /opt/serverctl/lib /etc/serverctl /var/lib/serverctl/{websites,databases,locks,dashboard} /var/log/serverctl /var/backups/serverctl
   install -d -m 0755 -o root -g root /opt/serverctl/dashboard
   install -m 0755 "$SCRIPT_DIR/bin/serverctl" /opt/serverctl/bin/serverctl
@@ -137,6 +138,7 @@ install_serverctl() {
   find "$SCRIPT_DIR/dashboard/public/assets/css" -type f -exec install -m 0644 -o root -g root {} /opt/serverctl/dashboard/public/assets/css/ \;
   find "$SCRIPT_DIR/dashboard/public/assets/js" -type f -exec install -m 0644 -o root -g root {} /opt/serverctl/dashboard/public/assets/js/ \;
   ln -sfn /opt/serverctl/bin/serverctl /usr/local/bin/serverctl
+  install -m 0755 -o root -g root "$SCRIPT_DIR/etc/serverctl-cron-run" /usr/local/libexec/serverctl-cron-run
   install -m 0640 "$SCRIPT_DIR/config/serverctl.conf" /etc/serverctl/serverctl.conf
   sed -i "s/^DEFAULT_PHP_VERSION=.*/DEFAULT_PHP_VERSION=$DEFAULT_PHP/" /etc/serverctl/serverctl.conf
   timedatectl set-timezone Asia/Bangkok
@@ -146,6 +148,7 @@ install_serverctl() {
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl" /etc/logrotate.d/serverctl
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl-web" /etc/logrotate.d/serverctl-web
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl-dashboard" /etc/logrotate.d/serverctl-dashboard
+  install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl-cron" /etc/logrotate.d/serverctl-cron
   install -m 0644 "$SCRIPT_DIR/etc/nginx/conf.d/serverctl-security.conf" /etc/nginx/conf.d/serverctl-security.conf
   install -m 0644 "$SCRIPT_DIR/etc/nginx/sites-available/serverctl-default.conf" /etc/nginx/sites-available/serverctl-default.conf
   rm -f /etc/nginx/sites-enabled/default

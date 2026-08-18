@@ -28,7 +28,8 @@ interactive_menu() {
 12. System Update
 13. Nginx
 14. SFTP Users
-15. Exit
+15. Cron Jobs
+16. Exit
 ========================================
 EOF
     printf 'Select option: '; read -r choice
@@ -47,7 +48,8 @@ EOF
       12) menu_system_update ;;
       13) menu_nginx ;;
       14) menu_sftp ;;
-      15) return 0 ;;
+      15) menu_cron ;;
+      16) return 0 ;;
       *) warn 'Invalid option.'; sleep 1 ;;
     esac
   done
@@ -244,6 +246,63 @@ menu_backup() {
     *) return ;;
   esac
   menu_pause
+}
+
+menu_cron_schedule() {
+  local choice expression
+  printf '\n1. Every Minute\n2. Every 5 Minutes\n3. Every 10 Minutes\n4. Every 15 Minutes\n5. Every 30 Minutes\n6. Every Hour\n7. Every Day\n8. Every Week\n9. Every Month\n10. Custom Cron Expression\nSelect schedule: '
+  read -r choice
+  case "$choice" in
+    1) expression='* * * * *' ;; 2) expression='*/5 * * * *' ;; 3) expression='*/10 * * * *' ;;
+    4) expression='*/15 * * * *' ;; 5) expression='*/30 * * * *' ;; 6) expression='0 * * * *' ;;
+    7) expression='0 0 * * *' ;; 8) expression='0 0 * * 0' ;; 9) expression='0 0 1 * *' ;;
+    10) printf 'Cron expression: '; read -r expression ;;
+    *) return 1 ;;
+  esac
+  printf '%s' "$expression"
+}
+
+menu_cron_add() {
+  local type user schedule command description website script enabled
+  printf '\n1. System Cron\n2. Website Cron\nSelect type: '; read -r type
+  schedule=$(menu_cron_schedule) || return
+  printf 'Enabled? [Y/n]: '; read -r enabled; [[ "$enabled" =~ ^[Nn] ]] && enabled=--disabled || enabled=--enabled
+  printf 'Description: '; read -r description
+  if [[ "$type" == 2 ]]; then
+    printf 'Website: '; read -r website; printf 'Script filename: '; read -r script
+    menu_exec cron website add "$website" --schedule "$schedule" --script "$script" --description "$description" "$enabled"
+  elif [[ "$type" == 1 ]]; then
+    printf 'User [root]: '; read -r user; user=${user:-root}; printf 'Command (absolute executable and arguments): '; read -r command
+    menu_exec cron add --user "$user" --schedule "$schedule" --command "$command" --description "$description" "$enabled"
+  else
+    warn 'Invalid Cron type.'
+  fi
+  menu_pause
+}
+
+menu_cron() {
+  local choice id lines expression user schedule command description
+  local -a edit_args
+  while true; do
+    printf '\n========================================\n            CRON JOB MANAGER\n========================================\n\n  1. List Cron Jobs\n  2. Add Cron Job\n  3. Edit Cron Job\n  4. Enable Cron Job\n  5. Disable Cron Job\n  6. Run Now\n  7. Delete Cron Job\n  8. View Cron Logs\n  9. Validate Cron Job\n 10. System Cron\n 11. Website Cron\n 12. Cron Status\n\n  0. Back\n\n========================================\nSelect option: '
+    read -r choice
+    case "$choice" in
+      1) menu_exec cron list; menu_pause ;;
+      2) menu_cron_add ;;
+      3) printf 'Cron ID: '; read -r id; printf 'New schedule (blank keeps current): '; read -r schedule; printf 'New command (blank keeps current): '; read -r command; printf 'Description (blank keeps current): '; read -r description; edit_args=(cron edit "$id"); [[ -n "$schedule" ]] && edit_args+=(--schedule "$schedule"); [[ -n "$command" ]] && edit_args+=(--command "$command"); [[ -n "$description" ]] && edit_args+=(--description "$description"); menu_exec "${edit_args[@]}"; menu_pause ;;
+      4) printf 'Cron ID: '; read -r id; menu_exec cron enable "$id"; menu_pause ;;
+      5) printf 'Cron ID: '; read -r id; menu_exec cron disable "$id"; menu_pause ;;
+      6) printf 'Cron ID: '; read -r id; menu_exec cron run "$id"; menu_pause ;;
+      7) printf 'Cron ID: '; read -r id; menu_exec cron delete "$id"; menu_pause ;;
+      8) printf 'Cron ID: '; read -r id; printf 'Lines [100]: '; read -r lines; menu_exec cron logs "$id" "${lines:-100}"; menu_pause ;;
+      9) printf 'Cron expression: '; read -r expression; menu_exec cron validate "$expression"; menu_pause ;;
+     10) menu_exec cron system; menu_pause ;;
+     11) menu_exec cron website list; menu_pause ;;
+     12) menu_exec cron status; menu_pause ;;
+      0) return ;;
+      *) warn 'Invalid option.' ;;
+    esac
+  done
 }
 
 menu_logs() {
