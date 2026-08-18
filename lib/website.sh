@@ -167,7 +167,12 @@ _website_remove_locked() {
     return "$EXIT_VALIDATION"
   fi
   rm -f -- "$enabled_snapshot"
-  run_cmd systemctl reload nginx; run_cmd systemctl reload "php$php-fpm"
+  run_cmd systemctl reload nginx
+  if service_is_active "php$php-fpm"; then
+    run_cmd systemctl reload "php$php-fpm"
+  else
+    warn "PHP-FPM service php$php-fpm is not active; skipping reload during website removal."
+  fi
   commit_configs
   sftp_apply_config "" "" "" "$domain" || warn "Website removed, but the SFTP SSH configuration could not be reloaded."
   remove_website_user "$user" || true
