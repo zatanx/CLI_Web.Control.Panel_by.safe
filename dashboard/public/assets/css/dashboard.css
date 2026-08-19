@@ -128,6 +128,8 @@ input[type="checkbox"] { display: inline-block; width: auto; margin: 0 7px 0 0; 
 input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
 .log-viewer { min-height: 270px; max-height: 520px; overflow: auto; margin: 0; padding: 16px; border-radius: 8px; color: #dce7f8; background: #111d31; font: 11px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
 .ip-list { word-break: break-word; }
+.ip-entry { display: inline-flex; align-items: center; margin: 0 8px 6px 0; }
+.ip-entry code { color: var(--ink); font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
 .alert-list { margin-bottom: 16px; }
 .alert { border-radius: 8px; font-size: 12px; margin-bottom: 8px; padding: 11px 14px; }
 .alert-danger { color: #a33243; background: var(--red-soft); border: 1px solid #f2c8cf; }

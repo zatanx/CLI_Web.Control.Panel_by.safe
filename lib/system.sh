@@ -144,7 +144,18 @@ cmd_fail2ban() {
 
 fail2ban_list() {
   local jail
-  for jail in $(fail2ban-client status 2>/dev/null | sed -n 's/.*Jail list:[[:space:]]*//p' | tr ',' ' '); do fail2ban-client status "$jail"; done
+  while IFS= read -r jail; do
+    [[ -n "$jail" ]] || continue
+    fail2ban-client status "$jail"
+  done < <(fail2ban_jails)
+}
+
+fail2ban_jails() {
+  fail2ban-client status 2>/dev/null \
+    | sed -n 's/.*Jail list:[[:space:]]*//p' \
+    | tr ',' '\n' \
+    | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+    | sed '/^$/d'
 }
 
 fail2ban_ip() {
@@ -155,9 +166,11 @@ fail2ban_ip() {
   if [[ "$action" == ban ]]; then
     run_cmd fail2ban-client set sshd banip "$ip"
   else
-    for jail in sshd serverctl-dashboard-login; do
+    # Web requests can be banned by nginx-http-auth or nginx-limit-req.
+    while IFS= read -r jail; do
+      [[ -n "$jail" ]] || continue
       fail2ban-client set "$jail" unbanip "$ip" >/dev/null 2>&1 || true
-    done
+    done < <(fail2ban_jails)
   fi
   ok "Fail2Ban $action completed for $ip."
 }
