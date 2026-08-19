@@ -27,6 +27,16 @@ sftp_set_password() {
   printf '%s:%s\n' "$user" "$password" | chpasswd
 }
 
+sftp_repair_content_permissions() {
+  local public=$1
+  [[ -d "$public" ]] || return 1
+  # Repair existing uploads as well as setting the inheritance point for
+  # future uploads. Files must be group-readable and directories group-
+  # searchable by Nginx's www-data account.
+  find "$public" -type d -exec chgrp www-data {} + -exec chmod g+rx,g+s {} +
+  find "$public" -type f -exec chgrp www-data {} + -exec chmod g+r {} +
+}
+
 sftp_prepare_site() {
   local user=$1 site_root=$2
   [[ "$SERVERCTL_TEST_MODE" == 1 ]] && return 0
@@ -34,7 +44,11 @@ sftp_prepare_site() {
   chown root:root "$site_root"
   chmod 0755 "$site_root"
   chown "$user:www-data" "$site_root/public"
-  chmod 0750 "$site_root/public"
+  sftp_repair_content_permissions "$site_root/public" || return 1
+  # Keep www-data as the inherited group for files uploaded through SFTP.
+  # Without setgid, internal-sftp creates files with the user's private
+  # primary group and Nginx cannot read them, resulting in 403 responses.
+  chmod 2750 "$site_root/public"
 }
 
 sftp_restore_site_permissions() {
@@ -44,7 +58,8 @@ sftp_restore_site_permissions() {
   chown "$user:$user" "$site_root"
   chmod 0750 "$site_root"
   chown "$user:www-data" "$site_root/public"
-  chmod 0750 "$site_root/public"
+  sftp_repair_content_permissions "$site_root/public" || return 1
+  chmod 2750 "$site_root/public"
 }
 
 sftp_render_entry() {

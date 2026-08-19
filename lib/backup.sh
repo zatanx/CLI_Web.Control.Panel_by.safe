@@ -236,7 +236,8 @@ EOF
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
     chown -R "$user:$user" "$site_root"; chown "$user:www-data" "$site_root" "$site_root/public"; chown "root:$user" "$site_root/logs"
     chown "www-data:adm" "$site_root/logs/access.log" "$site_root/logs/error.log"; chown "$user:$user" "$site_root/logs/php-error.log"
-    chmod 0750 "$site_root" "$site_root/public" "$site_root/logs" "$site_root/tmp"; chmod 0640 "$site_root/logs/"*.log
+    sftp_repair_content_permissions "$site_root/public"
+    chmod 0750 "$site_root" "$site_root/logs" "$site_root/tmp"; chmod 2750 "$site_root/public"; chmod 0640 "$site_root/logs/"*.log
   fi
   render_php_pool "$domain" "$php" "$user"; render_nginx_site "$domain" "$php" no "$csp" "$upload_limit" "$rate_burst" "$static_cache"
   mkdir -p -- "$(nginx_enabled_dir)"; ln -sfn "$(nginx_available_dir)/$domain.conf" "$(nginx_enabled_dir)/$domain.conf"
