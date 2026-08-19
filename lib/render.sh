@@ -53,7 +53,10 @@ EOF
 
 render_nginx_site() {
   local domain=$1 version=$2 ssl=$3 csp=${4:-"default-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'"}
-  local upload_limit=${5:-32m} rate_burst=${6:-40} static_cache=${7:-off} destination=${8:-"$(nginx_available_dir)/$domain.conf"} cert_root static_block="" access_file
+  local upload_limit=${5:-32m} rate_burst=${6:-40} static_cache=${7:-off} destination=${8:-"$(nginx_available_dir)/$domain.conf"} document_root=${9:-} cert_root static_block="" access_file
+  if [[ -z "$document_root" ]]; then
+    document_root=$(record_get "$(website_record_path "$domain")" DOCUMENT_ROOT 2>/dev/null || printf '%s/%s/public' "$WEB_ROOT" "$domain")
+  fi
   if [[ "$static_cache" == on ]]; then static_block='    location ~* \.(jpg|jpeg|png|gif|svg|css|js|woff2)$ { expires 7d; add_header Cache-Control "public, immutable"; }'; fi
   cert_root="$(root_path /etc/letsencrypt/live)/$domain"
   access_file=$(nginx_access_path "$domain")
@@ -72,7 +75,7 @@ server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
     server_name $domain;
-    root $WEB_ROOT/$domain/public;
+    root $document_root;
     index index.php index.html;
     autoindex off;
     disable_symlinks if_not_owner from=\$document_root;
@@ -121,7 +124,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name $domain;
-    root $WEB_ROOT/$domain/public;
+    root $document_root;
     index index.php index.html;
     autoindex off;
     disable_symlinks if_not_owner from=\$document_root;

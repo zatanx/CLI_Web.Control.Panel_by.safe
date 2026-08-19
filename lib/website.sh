@@ -5,10 +5,11 @@ cmd_website() {
   case "$sub" in
     list) (($# == 0)) || die "website list accepts no arguments." "$EXIT_INVALID_ARGUMENT"; website_list ;;
     add) website_add "$@" ;;
+    root) website_root "$@" ;;
     remove) website_remove "$@" ;;
     health) website_health "$@" ;;
     csp) website_csp "$@" ;;
-    *) die "Usage: serverctl website <list|add|remove|health|csp>" "$EXIT_INVALID_ARGUMENT" ;;
+    *) die "Usage: serverctl website <list|add|root|remove|health|csp>" "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }
 
@@ -25,38 +26,64 @@ website_list() {
   shopt -u nullglob
 }
 
+website_root() {
+  require_root
+  local domain=${1:-} folder=${2:-} record php ssl user document_root csp upload_limit rate_burst static_cache nginx_file
+  (($# >= 1 && $# <= 2)) || die "Usage: serverctl website root DOMAIN [FOLDER]" "$EXIT_INVALID_ARGUMENT"
+  domain=${domain,,}; folder=${folder%/}
+  validate_site_name "$domain" || die "Invalid domain or IP address." "$EXIT_VALIDATION"
+  validate_web_folder "$folder" || die "Invalid website folder. Use a relative path such as ecatalogs or ecatalogs/admin." "$EXIT_VALIDATION"
+  website_exists "$domain" || die "Website not found." "$EXIT_VALIDATION"
+  record=$(website_record_path "$domain")
+  php=$(record_get "$record" PHP_VERSION); ssl=$(record_get "$record" SSL); user=$(record_get "$record" USER)
+  csp=$(record_get "$record" CSP || true); upload_limit=$(record_get "$record" UPLOAD_LIMIT || printf 32m)
+  rate_burst=$(record_get "$record" RATE_BURST || printf 40); static_cache=$(record_get "$record" STATIC_CACHE || printf off)
+  document_root=$(web_document_root "$domain" "$folder"); assert_safe_web_path "$document_root"; nginx_file="$(nginx_available_dir)/$domain.conf"
+  mkdir -p -- "$document_root"; chown "$user:www-data" "$document_root"; chmod 2750 "$document_root"
+  sftp_repair_content_permissions "$document_root" || die "Unable to prepare the selected website folder." "$EXIT_SYSTEM"
+  ROLLBACK_FILES=(); backup_config_file "$nginx_file"
+  render_nginx_site "$domain" "$php" "$ssl" "$csp" "$upload_limit" "$rate_burst" "$static_cache" "$nginx_file" "$document_root"
+  if ! validate_nginx; then rollback_configs; die "Nginx rejected the selected website folder; configuration restored." "$EXIT_VALIDATION"; fi
+  run_cmd systemctl reload nginx
+  update_record_value "$record" DOCUMENT_ROOT "$document_root"; commit_configs
+  ok "Website root updated: $document_root"
+}
+
 website_add() {
   require_root
-  local domain=${1:-} php=$DEFAULT_PHP_VERSION user site_root
+  local domain=${1:-} php=$DEFAULT_PHP_VERSION folder='' user site_root document_root
   [[ -n "$domain" ]] || die "Domain is required." "$EXIT_INVALID_ARGUMENT"
   shift || true
   while (($#)); do
     case "$1" in
       --php) (($# >= 2)) || die "--php requires a version." "$EXIT_INVALID_ARGUMENT"; php=$2; shift 2 ;;
+      --folder) (($# >= 2)) || die "--folder requires a path relative to public/." "$EXIT_INVALID_ARGUMENT"; folder=${2%/}; shift 2 ;;
       *) die "Unknown website add argument: $1" "$EXIT_INVALID_ARGUMENT" ;;
     esac
   done
   domain=${domain,,}
+  validate_web_folder "$folder" || die "Invalid website folder. Use a relative path such as ecatalogs or ecatalogs/admin." "$EXIT_VALIDATION"
   validate_site_name "$domain" || die "Invalid domain or IP address: $domain" "$EXIT_VALIDATION"
   validate_php_version "$php" || die "Unsupported PHP version: $php" "$EXIT_VALIDATION"
   website_exists "$domain" && die "Website already exists: $domain" "$EXIT_VALIDATION"
   [[ "$SERVERCTL_TEST_MODE" == 1 || -x "/usr/sbin/php-fpm$php" || -x "/usr/bin/php-fpm$php" ]] || die "PHP $php FPM is not installed." "$EXIT_SYSTEM"
   user=$(website_user "$domain")
   site_root="$WEB_ROOT/$domain"
+  document_root=$(web_document_root "$domain" "$folder")
   assert_safe_web_path "$site_root"
   [[ ! -e "$site_root" && ! -e "$(nginx_available_dir)/$domain.conf" && ! -e "$(php_pool_dir "$php")/$domain.conf" ]] || die "Unmanaged files or configuration already exist for $domain; refusing to overwrite them." "$EXIT_VALIDATION"
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]] && getent passwd "$user" >/dev/null; then die "Linux user $user already exists without a serverctl website record." "$EXIT_VALIDATION"; fi
-  with_lock website _website_add_locked "$domain" "$php" "$user" "$site_root"
+  with_lock website _website_add_locked "$domain" "$php" "$user" "$site_root" "$document_root"
 }
 
 _website_add_locked() {
-  local domain=$1 php=$2 user=$3 site_root=$4 pool site_config link sftp_password
+  local domain=$1 php=$2 user=$3 site_root=$4 document_root=$5 pool site_config link sftp_password
   pool="$(php_pool_dir "$php")/$domain.conf"; site_config="$(nginx_available_dir)/$domain.conf"; link="$(nginx_enabled_dir)/$domain.conf"
   info "Creating isolated website $domain ($user, PHP $php)..."
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
     getent passwd "$user" >/dev/null || run_cmd useradd --system --home-dir "$site_root" --create-home --shell /usr/sbin/nologin --user-group "$user"
   fi
-  mkdir -p -- "$site_root/public" "$site_root/logs" "$site_root/tmp"
+  mkdir -p -- "$site_root/public" "$site_root/logs" "$site_root/tmp" "$document_root"
   prepare_php_socket_dir || die "Unable to prepare the PHP-FPM socket directory." "$EXIT_SYSTEM"
   mkdir -p -- "$(dirname "$(nginx_access_path "$domain")")"
   atomic_write "$(nginx_access_path "$domain")" 0644 root root <<'EOF'
@@ -77,13 +104,13 @@ EOF
     [[ "$SERVERCTL_TEST_MODE" == 1 ]] || userdel "$user" 2>/dev/null || true
     die "SFTP configuration failed; website creation rolled back." "$EXIT_SYSTEM"
   fi
-  if [[ ! -e "$site_root/public/index.html" ]]; then
-    atomic_write "$site_root/public/index.html" 0640 "$user" www-data <<EOF
+  if [[ ! -e "$document_root/index.html" && ! -e "$document_root/index.php" ]]; then
+    atomic_write "$document_root/index.html" 0640 "$user" www-data <<EOF
 <!doctype html><html lang="en"><meta charset="utf-8"><title>$domain</title><h1>$domain is ready</h1></html>
 EOF
   fi
   render_php_pool "$domain" "$php" "$user"
-  render_nginx_site "$domain" "$php" no
+  render_nginx_site "$domain" "$php" no "default-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'" 32m 40 off "$(nginx_available_dir)/$domain.conf" "$document_root"
   mkdir -p -- "$(nginx_enabled_dir)"
   [[ -L "$link" ]] || ln -s "$site_config" "$link"
   if ! reload_web_stack "$php"; then
@@ -93,7 +120,7 @@ EOF
     [[ "$SERVERCTL_TEST_MODE" == 1 ]] || userdel "$user" 2>/dev/null || true
     die "Validation failed; website configuration rolled back." "$EXIT_VALIDATION"
   fi
-  save_website_record "$domain" "$php" "$user" no online yes
+  save_website_record "$domain" "$php" "$user" no online yes "$document_root"
   ok "Website created: http://$domain ($site_root/public)"
   printf 'SFTP User: %s\nPassword:  %s\nHost:      %s\nPort:      22\nPath:      /public\n' "$user" "$sftp_password" "$domain"
 }

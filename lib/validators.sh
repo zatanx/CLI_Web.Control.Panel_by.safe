@@ -14,6 +14,19 @@ validate_site_name() {
   validate_domain "$site"
 }
 
+validate_web_folder() {
+  local folder=${1:-}
+  [[ -z "$folder" || "$folder" == . ]] && return 0
+  [[ "$folder" != /* && "$folder" != */ && "$folder" != *'..'* ]] || return 1
+  [[ "$folder" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]]
+}
+
+web_document_root() {
+  local domain=$1 folder=${2:-} base
+  base="$WEB_ROOT/$domain/public"
+  [[ -z "$folder" || "$folder" == . ]] && printf '%s' "$base" || printf '%s/%s' "$base" "$folder"
+}
+
 is_local_site() {
   local site=${1,,} first second
   [[ "$site" == localhost ]] && return 0

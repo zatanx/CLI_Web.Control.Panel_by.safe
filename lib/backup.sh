@@ -212,19 +212,23 @@ restore_database_stage() {
 }
 
 restore_website_stage() {
-  local stage=$1 record domain php user site_root csp upload_limit rate_burst static_cache
+  local stage=$1 record domain php user site_root csp upload_limit rate_burst static_cache document_root base folder
   record="$stage/config/record.conf"; domain=$(record_get "$record" DOMAIN); php=$(record_get "$record" PHP_VERSION); csp=$(record_get "$record" CSP || true)
   upload_limit=$(record_get "$record" UPLOAD_LIMIT || printf 32m); rate_burst=$(record_get "$record" RATE_BURST || printf 40); static_cache=$(record_get "$record" STATIC_CACHE || printf off)
   validate_site_name "$domain" || die "Invalid website metadata in backup." "$EXIT_VALIDATION"
   validate_php_version "$php" || die "Unsupported PHP metadata in backup." "$EXIT_VALIDATION"
   validate_csp "$csp" || csp="default-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'"
+  base=$(web_document_root "$domain")
+  document_root=$(record_get "$record" DOCUMENT_ROOT || printf '%s' "$base")
+  if [[ "$document_root" == "$base" ]]; then folder=''; elif [[ "$document_root" == "$base/"* ]]; then folder=${document_root#"$base/"}; else folder=''; fi
+  validate_web_folder "$folder" || folder=''; document_root=$(web_document_root "$domain" "$folder")
   [[ "$upload_limit" =~ ^[1-9][0-9]{0,3}[kKmMgG]$ ]] || upload_limit=32m; [[ "$rate_burst" =~ ^([1-9]|[1-9][0-9]|100)$ ]] || rate_burst=40; [[ "$static_cache" == on || "$static_cache" == off ]] || static_cache=off
   [[ -d "$stage/files/$domain" ]] || die "Website payload is missing." "$EXIT_VALIDATION"
   website_exists "$domain" && backup_create_website "$domain"
   user=$(website_user "$domain"); site_root="$WEB_ROOT/$domain"; assert_safe_web_path "$site_root"
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then getent passwd "$user" >/dev/null || run_cmd useradd --system --home-dir "$site_root" --shell /usr/sbin/nologin --user-group "$user"; fi
   rm -rf -- "$site_root"; mkdir -p -- "$WEB_ROOT"; cp -a -- "$stage/files/$domain" "$WEB_ROOT/"
-  mkdir -p -- "$site_root/public" "$site_root/logs" "$site_root/tmp"
+  mkdir -p -- "$site_root/public" "$site_root/logs" "$site_root/tmp" "$document_root"
   prepare_php_socket_dir || die "Unable to prepare the PHP-FPM socket directory." "$EXIT_SYSTEM"
   mkdir -p -- "$(dirname "$(nginx_access_path "$domain")")"
   if [[ -f "$stage/config/access.conf" ]] && validate_nginx_access_file "$stage/config/access.conf"; then cp -- "$stage/config/access.conf" "$(nginx_access_path "$domain")"; chmod 0644 "$(nginx_access_path "$domain")"
@@ -240,10 +244,10 @@ EOF
     sftp_repair_content_permissions "$site_root/public"
     chmod 0750 "$site_root" "$site_root/logs" "$site_root/tmp"; chmod 2750 "$site_root/public"; chmod 0640 "$site_root/logs/"*.log
   fi
-  render_php_pool "$domain" "$php" "$user"; render_nginx_site "$domain" "$php" no "$csp" "$upload_limit" "$rate_burst" "$static_cache"
+  render_php_pool "$domain" "$php" "$user"; render_nginx_site "$domain" "$php" no "$csp" "$upload_limit" "$rate_burst" "$static_cache" "$(nginx_available_dir)/$domain.conf" "$document_root"
   mkdir -p -- "$(nginx_enabled_dir)"; ln -sfn "$(nginx_available_dir)/$domain.conf" "$(nginx_enabled_dir)/$domain.conf"
   reload_web_stack "$php" || die "Restored files, but generated web configuration failed validation." "$EXIT_VALIDATION"
-  save_website_record "$domain" "$php" "$user" no online; update_record_value "$(website_record_path "$domain")" CSP "$csp"
+  save_website_record "$domain" "$php" "$user" no online no "$document_root"; update_record_value "$(website_record_path "$domain")" CSP "$csp"
   update_record_value "$(website_record_path "$domain")" UPLOAD_LIMIT "$upload_limit"; update_record_value "$(website_record_path "$domain")" RATE_BURST "$rate_burst"; update_record_value "$(website_record_path "$domain")" STATIC_CACHE "$static_cache"
   if is_local_site "$domain"; then warn "Local/LAN website restored over HTTP."; else warn "Website restored over HTTP. Re-enable SSL after verifying DNS and certificate state."; fi
 }

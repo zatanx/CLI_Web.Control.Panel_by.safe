@@ -15,14 +15,15 @@ record_get() {
 }
 
 save_website_record() {
-  local domain=$1 php=$2 user=$3 ssl=${4:-no} status=${5:-online} sftp_enabled=${6:-no}
+  local domain=$1 php=$2 user=$3 ssl=${4:-no} status=${5:-online} sftp_enabled=${6:-no} document_root
+  document_root=${7:-$WEB_ROOT/$domain/public}
   atomic_write "$(website_record_path "$domain")" 0640 root root <<EOF
 DOMAIN=$domain
 PHP_VERSION=$php
 USER=$user
 SSL=$ssl
 STATUS=$status
-DOCUMENT_ROOT=$WEB_ROOT/$domain/public
+DOCUMENT_ROOT=$document_root
 CSP=default-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'
 UPLOAD_LIMIT=32m
 RATE_BURST=40

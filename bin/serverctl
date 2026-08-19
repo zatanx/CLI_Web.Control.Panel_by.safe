@@ -41,6 +41,7 @@ Commands:
   health                             Overall health check
   website list
   website add DOMAIN [--php VERSION] [--yes]
+  website root DOMAIN [FOLDER]
   website remove DOMAIN [--yes] [--no-backup]
   website health DOMAIN
   website csp DOMAIN 'POLICY' [--yes]
