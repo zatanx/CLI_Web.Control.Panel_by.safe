@@ -191,6 +191,10 @@ serverctl_source_dir() {
   fi
 
   current=$(pwd -P 2>/dev/null || true)
+  # The caller may be inside a checkout or directory that was replaced
+  # during an update. Detach child processes from that stale cwd before any
+  # git -C or other external command is started.
+  cd / 2>/dev/null || true
   git_root=$(git -C "$current" rev-parse --show-toplevel 2>/dev/null || true)
   if [[ "$(basename -- "$git_root")" == "$SERVERCTL_REPOSITORY_NAME" ]]; then
     printf '%s' "$git_root"
