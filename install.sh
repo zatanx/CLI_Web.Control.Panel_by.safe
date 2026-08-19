@@ -142,9 +142,10 @@ install_serverctl() {
   install -m 0640 "$SCRIPT_DIR/config/serverctl.conf" /etc/serverctl/serverctl.conf
   sed -i "s/^DEFAULT_PHP_VERSION=.*/DEFAULT_PHP_VERSION=$DEFAULT_PHP/" /etc/serverctl/serverctl.conf
   timedatectl set-timezone Asia/Bangkok
-  install -d -m 0755 /etc/fail2ban/jail.d /etc/fail2ban/filter.d /etc/logrotate.d /etc/systemd/system /etc/letsencrypt/renewal-hooks/deploy /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled
+  install -d -m 0755 /etc/fail2ban/jail.d /etc/fail2ban/filter.d /etc/logrotate.d /etc/systemd/system /etc/tmpfiles.d /etc/letsencrypt/renewal-hooks/deploy /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled
   install -m 0644 "$SCRIPT_DIR/etc/fail2ban/jail.d/serverctl.local" /etc/fail2ban/jail.d/serverctl.local
   install -m 0644 "$SCRIPT_DIR/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" /etc/fail2ban/filter.d/serverctl-dashboard-login.conf
+  install -m 0644 "$SCRIPT_DIR/etc/tmpfiles.d/serverctl.conf" /etc/tmpfiles.d/serverctl.conf
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl" /etc/logrotate.d/serverctl
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl-web" /etc/logrotate.d/serverctl-web
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl-dashboard" /etc/logrotate.d/serverctl-dashboard

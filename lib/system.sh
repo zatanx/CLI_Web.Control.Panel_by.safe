@@ -250,7 +250,7 @@ serverctl_update_source() {
   require_root
   has_command git || die 'Git is required to update serverctl from GitHub.' "$EXIT_SYSTEM"
 
-  local source_dir remote branch old_revision new_revision file dashboard_dir dashboard_state sudoers_file
+  local source_dir remote branch old_revision new_revision file dashboard_dir dashboard_state sudoers_file tmpfiles_file
   source_dir=$(serverctl_prepare_source)
   [[ -f "$source_dir/bin/serverctl" && -d "$source_dir/lib" ]] || die "Invalid serverctl source directory: $source_dir" "$EXIT_VALIDATION"
 
@@ -281,6 +281,12 @@ serverctl_update_source() {
   if [[ -f "$source_dir/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" ]]; then
     run_cmd install -d -m 0755 "$(root_path /etc/fail2ban/filter.d)"
     run_cmd install -m 0644 "$source_dir/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" "$(root_path /etc/fail2ban/filter.d/serverctl-dashboard-login.conf)"
+  fi
+  if [[ -f "$source_dir/etc/tmpfiles.d/serverctl.conf" ]]; then
+    tmpfiles_file="$(root_path /etc/tmpfiles.d/serverctl.conf)"
+    run_cmd install -d -m 0755 "$(root_path /etc/tmpfiles.d)"
+    run_cmd install -m 0644 "$source_dir/etc/tmpfiles.d/serverctl.conf" "$tmpfiles_file"
+    run_cmd systemd-tmpfiles --create "$tmpfiles_file"
   fi
   if [[ -f "$source_dir/etc/sudoers.d/serverctl" ]]; then
     sudoers_file="$(root_path /etc/sudoers.d/serverctl)"
