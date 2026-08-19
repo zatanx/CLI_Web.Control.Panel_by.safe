@@ -192,7 +192,18 @@ menu_nginx_restore() {
   menu_exec nginx restore "$name"; menu_pause
 }
 
-menu_add_website() { local domain php; printf 'Domain: '; read -r domain; printf 'PHP version [%s]: ' "$DEFAULT_PHP_VERSION"; read -r php; php=${php:-$DEFAULT_PHP_VERSION}; menu_exec website add "$domain" --php "$php"; menu_pause; }
+menu_add_website() {
+  local domain php folder
+  printf 'Domain: '; read -r domain
+  printf 'PHP version [%s]: ' "$DEFAULT_PHP_VERSION"; read -r php; php=${php:-$DEFAULT_PHP_VERSION}
+  printf 'Web folder under public/ [blank = public]: '; read -r folder; folder=${folder%/}
+  if [[ -n "$folder" ]]; then
+    menu_exec website add "$domain" --php "$php" --folder "$folder"
+  else
+    menu_exec website add "$domain" --php "$php"
+  fi
+  menu_pause
+}
 menu_remove_website() { local domain; website_list; printf '\nDomain to remove: '; read -r domain; menu_exec website remove "$domain"; menu_pause; }
 menu_enable_ssl() { local domain email; printf 'Domain: '; read -r domain; printf 'Let\x27s Encrypt email (optional): '; read -r email; if [[ -n "$email" ]]; then menu_exec ssl enable "$domain" --email "$email"; else menu_exec ssl enable "$domain"; fi; menu_pause; }
 
