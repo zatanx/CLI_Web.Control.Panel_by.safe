@@ -3,8 +3,21 @@
 nginx_available_dir() { root_path /etc/nginx/sites-available; }
 nginx_enabled_dir() { root_path /etc/nginx/sites-enabled; }
 php_pool_dir() { root_path "/etc/php/$1/fpm/pool.d"; }
+php_socket_dir() { root_path /run/php/serverctl; }
 php_socket_path() { root_path "/run/php/serverctl/$1.sock"; }
 nginx_access_path() { root_path "/etc/nginx/snippets/serverctl-access-$1.conf"; }
+
+prepare_php_socket_dir() {
+  local directory
+  directory=$(php_socket_dir)
+  mkdir -p -- "$directory"
+  if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
+    # serverctl runs with umask 077, but Nginx must traverse this directory
+    # to connect to the per-site PHP-FPM sockets inside it.
+    chown root:root "$directory"
+    chmod 0755 "$directory"
+  fi
+}
 
 render_php_pool() {
   local domain=$1 version=$2 user=$3 destination

@@ -224,7 +224,8 @@ restore_website_stage() {
   user=$(website_user "$domain"); site_root="$WEB_ROOT/$domain"; assert_safe_web_path "$site_root"
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then getent passwd "$user" >/dev/null || run_cmd useradd --system --home-dir "$site_root" --shell /usr/sbin/nologin --user-group "$user"; fi
   rm -rf -- "$site_root"; mkdir -p -- "$WEB_ROOT"; cp -a -- "$stage/files/$domain" "$WEB_ROOT/"
-  mkdir -p -- "$site_root/public" "$site_root/logs" "$site_root/tmp" "$(dirname "$(php_socket_path "$domain")")"
+  mkdir -p -- "$site_root/public" "$site_root/logs" "$site_root/tmp"
+  prepare_php_socket_dir || die "Unable to prepare the PHP-FPM socket directory." "$EXIT_SYSTEM"
   mkdir -p -- "$(dirname "$(nginx_access_path "$domain")")"
   if [[ -f "$stage/config/access.conf" ]] && validate_nginx_access_file "$stage/config/access.conf"; then cp -- "$stage/config/access.conf" "$(nginx_access_path "$domain")"; chmod 0644 "$(nginx_access_path "$domain")"
   else atomic_write "$(nginx_access_path "$domain")" 0644 root root <<'EOF'
