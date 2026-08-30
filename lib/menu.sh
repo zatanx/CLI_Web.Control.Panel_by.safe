@@ -261,32 +261,48 @@ menu_backup() {
 
 menu_cron_schedule() {
   local choice expression
-  printf '\n1. Every Minute\n2. Every 5 Minutes\n3. Every 10 Minutes\n4. Every 15 Minutes\n5. Every 30 Minutes\n6. Every Hour\n7. Every Day\n8. Every Week\n9. Every Month\n10. Custom Cron Expression\nSelect schedule: '
+  printf '\n========================================\n          SELECT CRON SCHEDULE\n========================================\n\n  1. Every Minute       (* * * * *)\n  2. Every 5 Minutes    (*/5 * * * *)\n  3. Every 10 Minutes   (*/10 * * * *)\n  4. Every 15 Minutes   (*/15 * * * *)\n  5. Every 30 Minutes   (*/30 * * * *)\n  6. Every Hour         (0 * * * *)\n  7. Every Day          (0 0 * * *)\n  8. Every Week         (0 0 * * 0)\n  9. Every Month        (0 0 1 * *)\n 10. Custom Expression\n\n  0. Cancel\n\n========================================\nSelect schedule [0-10]: ' >&2
   read -r choice
   case "$choice" in
     1) expression='* * * * *' ;; 2) expression='*/5 * * * *' ;; 3) expression='*/10 * * * *' ;;
     4) expression='*/15 * * * *' ;; 5) expression='*/30 * * * *' ;; 6) expression='0 * * * *' ;;
     7) expression='0 0 * * *' ;; 8) expression='0 0 * * 0' ;; 9) expression='0 0 1 * *' ;;
-    10) printf 'Cron expression: '; read -r expression ;;
-    *) return 1 ;;
+    10) printf 'Cron expression (5 fields, example: */2 * * * *): ' >&2; read -r expression ;;
+    0) return 1 ;;
+    *) warn 'Invalid schedule option. Select a number from 0 to 10.'; return 1 ;;
   esac
+  cron_validate_expression "$expression" || { warn 'Invalid Cron expression. Enter exactly five valid fields.'; return 1; }
   printf '%s' "$expression"
 }
 
 menu_cron_add() {
   local type user schedule command description website script enabled
-  printf '\n1. System Cron\n2. Website Cron\nSelect type: '; read -r type
-  schedule=$(menu_cron_schedule) || return
-  printf 'Enabled? [Y/n]: '; read -r enabled; [[ "$enabled" =~ ^[Nn] ]] && enabled=--disabled || enabled=--enabled
-  printf 'Description: '; read -r description
+  printf '\n========================================\n             ADD CRON JOB\n========================================\n\n  1. System Cron\n     Run an allowed command as a selected Linux user.\n\n  2. Website Cron\n     Run a PHP script from a registered website.\n\n  0. Cancel\n\n========================================\nSelect type [0-2]: '
+  read -r type
+  case "$type" in
+    1|2) ;;
+    0) return 0 ;;
+    *) warn 'Invalid Cron type. Select 1, 2, or 0.'; menu_pause; return 0 ;;
+  esac
+  if ! schedule=$(menu_cron_schedule); then
+    menu_pause
+    return 0
+  fi
+  printf '\nSelected schedule: %s\n\n' "$schedule"
   if [[ "$type" == 2 ]]; then
-    printf 'Website: '; read -r website; printf 'Script filename: '; read -r script
+    printf '%s\n' 'Registered websites:'
+    website_list
+    printf '\nWebsite domain (example: example.com): '; read -r website
+    printf 'PHP script filename in the website document root (example: cron.php): '; read -r script
+    printf 'Description (optional): '; read -r description
+    printf 'Enable immediately? [Y/n]: '; read -r enabled; [[ "$enabled" =~ ^[Nn] ]] && enabled=--disabled || enabled=--enabled
     menu_exec cron website add "$website" --schedule "$schedule" --script "$script" --description "$description" "$enabled"
-  elif [[ "$type" == 1 ]]; then
-    printf 'User [root]: '; read -r user; user=${user:-root}; printf 'Command (absolute executable and arguments): '; read -r command
-    menu_exec cron add --user "$user" --schedule "$schedule" --command "$command" --description "$description" "$enabled"
   else
-    warn 'Invalid Cron type.'
+    printf 'Linux user [root]: '; read -r user; user=${user:-root}
+    printf 'Command (absolute executable and arguments; no quotes or redirects): '; read -r command
+    printf 'Description (optional): '; read -r description
+    printf 'Enable immediately? [Y/n]: '; read -r enabled; [[ "$enabled" =~ ^[Nn] ]] && enabled=--disabled || enabled=--enabled
+    menu_exec cron add --user "$user" --schedule "$schedule" --command "$command" --description "$description" "$enabled"
   fi
   menu_pause
 }
