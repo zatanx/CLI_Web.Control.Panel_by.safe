@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 readonly EXIT_GENERAL=1 EXIT_INVALID_ARGUMENT=2 EXIT_PERMISSION=3 EXIT_VALIDATION=4 EXIT_SYSTEM=5
-SERVERCTL_VERSION="${SERVERCTL_VERSION:-1.1.15}"
-SERVERCTL_RELEASE_DATE="${SERVERCTL_RELEASE_DATE:-2026-08-30}"
+SERVERCTL_VERSION="${SERVERCTL_VERSION:-1.1.16}"
+SERVERCTL_RELEASE_DATE="${SERVERCTL_RELEASE_DATE:-2026-08-31}"
 SERVERCTL_ROOT="${SERVERCTL_ROOT:-}"
 SERVERCTL_TEST_MODE="${SERVERCTL_TEST_MODE:-0}"
 SERVERCTL_ASSUME_YES="${SERVERCTL_ASSUME_YES:-0}"
@@ -84,6 +84,27 @@ init_runtime() {
   chmod 0750 "$LOG_DIR" "$BACKUP_DIR" 2>/dev/null || true
   touch "$SERVERCTL_LOG_FILE" "$AUDIT_LOG"
   chmod 0640 "$SERVERCTL_LOG_FILE" "$AUDIT_LOG" 2>/dev/null || true
+  migrate_legacy_cron_runtime
+}
+
+migrate_legacy_cron_runtime() {
+  local directory file needs_refresh=0
+  [[ "$SERVERCTL_TEST_MODE" == 1 || ${EUID:-$(id -u)} -eq 0 ]] || return 0
+  declare -F cron_render_all >/dev/null 2>&1 || return 0
+  directory=$(root_path /etc/cron.d)
+  [[ -d "$directory" ]] || return 0
+  shopt -s nullglob
+  for file in "$directory"/serverctl-cron-* "$directory"/serverctl-websites; do
+    [[ -f "$file" ]] || continue
+    if awk '$1 !~ /^#/ && NF >= 7 && $6 != "root" {found=1} END {exit found ? 0 : 1}' "$file"; then
+      needs_refresh=1
+      break
+    fi
+  done
+  shopt -u nullglob
+  ((needs_refresh)) || return 0
+  with_lock cron-config cron_render_all
+  audit_event 'cron runtime migration' SUCCESS 'trusted helper user=root'
 }
 
 require_root() {

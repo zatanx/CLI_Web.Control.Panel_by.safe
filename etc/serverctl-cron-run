@@ -4,6 +4,11 @@ umask 077
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  printf 'serverctl Cron helper must be invoked as root; run: sudo serverctl cron refresh\n' >&2
+  exit 3
+fi
+
 # This helper is installed root-owned and is referenced by generated cron
 # files.  It loads the trusted numeric job record and never accepts a command
 # argument from cron or from the web application.

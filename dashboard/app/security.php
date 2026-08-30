@@ -15,7 +15,30 @@ function dashboard_security_headers(): void
     header('X-Frame-Options: DENY');
     header('Referrer-Policy: no-referrer');
     header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
-    header("Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    $script_sources = "'self'";
+    $connect_sources = "'self'";
+    $frame_sources = "'self'";
+    $image_sources = "'self' data:";
+    if (function_exists('dashboard_bot_login_enabled') && dashboard_bot_login_enabled()) {
+        $provider = dashboard_bot_provider();
+        if ($provider === 'recaptcha_v3') {
+            $script_sources .= ' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/';
+            $connect_sources .= ' https://www.google.com/recaptcha/';
+            $frame_sources .= ' https://www.google.com/recaptcha/';
+            $image_sources .= ' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/';
+        } elseif ($provider === 'turnstile') {
+            $script_sources .= ' https://challenges.cloudflare.com';
+            $connect_sources .= ' https://challenges.cloudflare.com';
+            $frame_sources .= ' https://challenges.cloudflare.com';
+        }
+    }
+    header(sprintf(
+        "Content-Security-Policy: default-src 'self'; style-src 'self'; script-src %s; connect-src %s; frame-src %s; img-src %s; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+        $script_sources,
+        $connect_sources,
+        $frame_sources,
+        $image_sources
+    ));
     if (!dashboard_is_local_mode() && dashboard_request_is_https()) {
         header('Strict-Transport-Security: max-age=31536000');
     }
@@ -26,7 +49,7 @@ function dashboard_json_response(array $payload, int $status = 200): never
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    echo json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 

@@ -100,7 +100,7 @@ security_permissions() {
   shopt -s nullglob
   for record in "$STATE_DIR"/websites/*.conf; do
     domain=$(record_get "$record" DOMAIN); expected=$(record_get "$record" USER)
-    while IFS= read -r -d '' path; do printf 'WARNING unexpected owner (expected %s or www-data): %s\n' "$expected" "$path"; found=1; done < <(find "$WEB_ROOT/$domain" -xdev ! -user "$expected" ! -user www-data -print0 2>/dev/null)
+    while IFS= read -r -d '' path; do printf 'WARNING unexpected owner (expected %s, www-data, or root): %s\n' "$expected" "$path"; found=1; done < <(find "$WEB_ROOT/$domain" -xdev ! -user "$expected" ! -user www-data ! -user root -print0 2>/dev/null)
   done
   shopt -u nullglob
   ((found)) || ok 'No world-writable website files found.'

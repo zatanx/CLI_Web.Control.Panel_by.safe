@@ -30,6 +30,11 @@ web_document_root() {
 is_local_site() {
   local site=${1,,} first second
   [[ "$site" == localhost ]] && return 0
+  if [[ "$site" == *:* ]]; then
+    validate_ip "$site" || return 1
+    [[ "$site" == ::1 || "$site" == fc*:* || "$site" == fd*:* || "$site" == fe[89ab]*:* ]]
+    return
+  fi
   [[ "$site" != *:* ]] && validate_ip "$site" || return 1
   IFS=. read -r first second _ <<< "$site"
   ((first == 10)) && return 0
@@ -45,10 +50,35 @@ validate_email() { [[ "$1" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$
 
 validate_ip() {
   local ip=$1 part
-  if [[ "$ip" == *:* ]]; then [[ "$ip" =~ ^[0-9A-Fa-f:]+$ ]] && [[ "$ip" == *:* ]]; return; fi
+  local -a parts
+  if [[ "$ip" == *:* ]]; then validate_ipv6 "$ip"; return; fi
   IFS=. read -r -a parts <<< "$ip"
   ((${#parts[@]} == 4)) || return 1
   for part in "${parts[@]}"; do [[ "$part" =~ ^[0-9]{1,3}$ ]] && ((10#$part <= 255)) || return 1; done
+}
+
+validate_ipv6() {
+  local ip=$1 left right part
+  local -a left_parts=() right_parts=() parts=()
+  [[ "$ip" =~ ^[0-9A-Fa-f:]+$ && "$ip" == *:* && "$ip" != *:::* ]] || return 1
+  if [[ "$ip" == *::* ]]; then
+    left=${ip%%::*}; right=${ip#*::}
+    [[ "$right" != *::* ]] || return 1
+    if [[ -n "$left" ]]; then
+      [[ "$left" != :* && "$left" != *: ]] || return 1
+      IFS=: read -r -a left_parts <<< "$left"
+    fi
+    if [[ -n "$right" ]]; then
+      [[ "$right" != :* && "$right" != *: ]] || return 1
+      IFS=: read -r -a right_parts <<< "$right"
+    fi
+    ((${#left_parts[@]} + ${#right_parts[@]} < 8)) || return 1
+    parts=("${left_parts[@]}" "${right_parts[@]}")
+  else
+    IFS=: read -r -a parts <<< "$ip"
+    ((${#parts[@]} == 8)) || return 1
+  fi
+  for part in "${parts[@]}"; do [[ "$part" =~ ^[0-9A-Fa-f]{1,4}$ ]] || return 1; done
 }
 
 validate_port() { [[ "$1" =~ ^[0-9]+$ ]] && ((10#$1 >= 1 && 10#$1 <= 65535)); }

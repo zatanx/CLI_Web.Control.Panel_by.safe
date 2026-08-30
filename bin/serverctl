@@ -74,7 +74,7 @@ Commands:
   dashboard bot-protection status|set PROVIDER SITE_KEY --secret SECRET
   dashboard logs TYPE [LINES] [SEARCH]
   dashboard action ACTION [TARGET]
-  cron list|add|edit|enable|disable|run|delete|logs|validate|status|system|website
+  cron list|add|edit|enable|disable|run|delete|logs|validate|status|refresh|system|website
   dashboard install DOMAIN [--user USER] [--password-hash HASH]
   dashboard uninstall
   nginx status|test|reload|restart|stop|start

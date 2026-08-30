@@ -21,6 +21,7 @@ status_once() {
   print_service nginx nginx
   local version; for version in $ALLOWED_PHP_VERSIONS; do [[ -e "/etc/php/$version/fpm" ]] && print_service "PHP $version FPM" "php$version-fpm"; done
   print_service MariaDB mariadb
+  print_service Cron cron
   if ufw status 2>/dev/null | grep -q 'Status: active'; then printf '%-18s %s\n' UFW RUNNING; else printf '%-18s %s\n' UFW STOPPED; fi
   if aa-status --enabled >/dev/null 2>&1; then printf '%-18s %s\n' AppArmor ENABLED; else printf '%-18s %s\n' AppArmor DISABLED; fi
 }
@@ -53,6 +54,7 @@ cmd_health() {
   printf 'Server health\n'
   health_service nginx nginx "$failures"; failures=$HEALTH_FAILURES
   health_service MariaDB mariadb "$failures"; failures=$HEALTH_FAILURES
+  health_service Cron cron "$failures"; failures=$HEALTH_FAILURES
   for version in $ALLOWED_PHP_VERSIONS; do
     if [[ -d "/etc/php/$version/fpm" ]]; then health_service "PHP $version FPM" "php$version-fpm" "$failures"; failures=$HEALTH_FAILURES; fi
   done
@@ -149,41 +151,39 @@ SERVERCTL_REPOSITORY_URL="https://github.com/zatanx/CLI_Web.Control.Panel_by.saf
 SERVERCTL_BOOTSTRAP_SOURCE_DIR="$STATE_DIR/source"
 
 serverctl_source_dir() {
-  local candidate current git_root allow_missing=0
+  local candidate git_root allow_missing=0
   [[ "${1:-}" == --allow-missing ]] && allow_missing=1
   if [[ -n "$SERVERCTL_SOURCE_DIR" ]]; then
     git_root=$(git -C "$SERVERCTL_SOURCE_DIR" rev-parse --show-toplevel 2>/dev/null || true)
     [[ -n "$git_root" ]] || die "Configured serverctl source directory is not a Git repository: $SERVERCTL_SOURCE_DIR" "$EXIT_VALIDATION"
-    printf '%s' "$SERVERCTL_SOURCE_DIR"
-    return 0
-  fi
-
-  current=$(pwd -P 2>/dev/null || true)
-  # The caller may be inside a checkout or directory that was replaced
-  # during an update. Detach child processes from that stale cwd before any
-  # git -C or other external command is started.
-  cd / 2>/dev/null || true
-  git_root=$(git -C "$current" rev-parse --show-toplevel 2>/dev/null || true)
-  if [[ "$(basename -- "$git_root")" == "$SERVERCTL_REPOSITORY_NAME" ]]; then
+    serverctl_source_is_trusted "$git_root" || die "Configured serverctl source must be root-owned and not writable by group or others: $git_root" "$EXIT_PERMISSION"
     printf '%s' "$git_root"
     return 0
   fi
-
   for candidate in "$SERVERCTL_BOOTSTRAP_SOURCE_DIR" /opt/serverctl/source; do
     if [[ -d "$candidate" ]] && git -C "$candidate" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      printf '%s' "$(git -C "$candidate" rev-parse --show-toplevel)"
+      git_root=$(git -C "$candidate" rev-parse --show-toplevel)
+      serverctl_source_is_trusted "$git_root" || die "serverctl source is not root-controlled: $git_root" "$EXIT_PERMISSION"
+      printf '%s' "$git_root"
       return 0
     fi
   done
-
-  candidate=$(find /home /root -maxdepth 4 -type d -name "$SERVERCTL_REPOSITORY_NAME" -print -quit 2>/dev/null || true)
-  if [[ -n "$candidate" ]] && git -C "$candidate" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    printf '%s' "$(git -C "$candidate" rev-parse --show-toplevel)"
-    return 0
-  fi
-
   ((allow_missing)) && return "$EXIT_VALIDATION"
   die "Could not find $SERVERCTL_REPOSITORY_NAME. Set SERVERCTL_SOURCE_DIR in /etc/serverctl/serverctl.conf." "$EXIT_VALIDATION"
+}
+
+serverctl_source_is_trusted() {
+  local source_dir=$1 unsafe
+  [[ "$SERVERCTL_TEST_MODE" == 1 ]] && return 0
+  unsafe=$(find "$source_dir" -xdev \( ! -user root -o -perm /0022 \) -print -quit 2>/dev/null || true)
+  [[ -z "$unsafe" ]]
+}
+
+serverctl_remote_is_official() {
+  case "${1:-}" in
+    https://github.com/zatanx/CLI_Web.Control.Panel_by.safe|https://github.com/zatanx/CLI_Web.Control.Panel_by.safe.git|git@github.com:zatanx/CLI_Web.Control.Panel_by.safe.git|ssh://git@github.com/zatanx/CLI_Web.Control.Panel_by.safe.git) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 serverctl_prepare_source() {
@@ -205,20 +205,22 @@ serverctl_update_source() {
   require_root
   has_command git || die 'Git is required to update serverctl from GitHub.' "$EXIT_SYSTEM"
 
-  local source_dir remote branch old_revision new_revision file dashboard_dir dashboard_state sudoers_file tmpfiles_file
+  local source_dir remote branch old_revision new_revision remote_revision file dashboard_dir dashboard_state sudoers_file tmpfiles_file units_updated=0
   source_dir=$(serverctl_prepare_source)
   [[ -f "$source_dir/bin/serverctl" && -d "$source_dir/lib" ]] || die "Invalid serverctl source directory: $source_dir" "$EXIT_VALIDATION"
 
   branch=$(git -C "$source_dir" symbolic-ref --short HEAD 2>/dev/null || true)
   [[ "$branch" == main ]] || die "serverctl source must be on the main branch (current: ${branch:-detached})." "$EXIT_VALIDATION"
   remote=$(git -C "$source_dir" remote get-url origin 2>/dev/null || true)
-  [[ -n "$remote" ]] || die "serverctl source has no Git origin remote." "$EXIT_VALIDATION"
+  serverctl_remote_is_official "$remote" || die "serverctl source origin is not the official repository: ${remote:-missing}" "$EXIT_VALIDATION"
   [[ -z "$(git -C "$source_dir" status --porcelain)" ]] || die "Local changes exist in $source_dir. Commit or back them up before updating." "$EXIT_SYSTEM"
 
   old_revision=$(git -C "$source_dir" rev-parse HEAD)
   info "Updating serverctl from $remote"
   run_cmd git -C "$source_dir" pull --ff-only origin main
   new_revision=$(git -C "$source_dir" rev-parse HEAD)
+  remote_revision=$(git -C "$source_dir" rev-parse FETCH_HEAD 2>/dev/null || true)
+  [[ -n "$remote_revision" && "$new_revision" == "$remote_revision" ]] || die 'serverctl source HEAD does not exactly match origin/main after update.' "$EXIT_VALIDATION"
 
   run_cmd bash -n "$source_dir/bin/serverctl"
   for file in "$source_dir"/lib/*.sh; do
@@ -226,9 +228,31 @@ serverctl_update_source() {
     run_cmd bash -n "$file"
   done
 
-  run_cmd install -d -m 0755 "$(root_path /opt/serverctl/bin)" "$(root_path /opt/serverctl/lib)"
+  run_cmd install -d -m 0750 "$(root_path /opt/serverctl/bin)" "$(root_path /opt/serverctl/lib)"
   run_cmd install -m 0755 "$source_dir/bin/serverctl" "$(root_path /opt/serverctl/bin/serverctl)"
   run_cmd install -m 0644 "$source_dir"/lib/*.sh "$(root_path /opt/serverctl/lib)/"
+  run_cmd ln -sfn "$(root_path /opt/serverctl/bin/serverctl)" "$(root_path /usr/local/bin/serverctl)"
+  if [[ -f "$source_dir/etc/serverctl-cron-run" ]]; then
+    run_cmd install -d -m 0755 "$(root_path /usr/local/libexec)"
+    run_cmd install -m 0755 "$source_dir/etc/serverctl-cron-run" "$(root_path /usr/local/libexec/serverctl-cron-run)"
+  fi
+  if [[ -d "$source_dir/etc/logrotate.d" ]]; then
+    run_cmd install -d -m 0755 "$(root_path /etc/logrotate.d)"
+    for file in "$source_dir"/etc/logrotate.d/*; do [[ -f "$file" ]] && run_cmd install -m 0644 "$file" "$(root_path /etc/logrotate.d)/"; done
+  fi
+  if [[ -d "$source_dir/etc/systemd/system" ]]; then
+    run_cmd install -d -m 0755 "$(root_path /etc/systemd/system)"
+    for file in "$source_dir"/etc/systemd/system/*.service "$source_dir"/etc/systemd/system/*.timer; do
+      [[ -f "$file" ]] || continue
+      run_cmd install -m 0644 "$file" "$(root_path /etc/systemd/system)/"
+      units_updated=1
+    done
+    ((units_updated == 0)) || run_cmd systemctl daemon-reload
+  fi
+  if [[ -f "$source_dir/etc/letsencrypt/renewal-hooks/deploy/serverctl-reload-nginx" ]]; then
+    run_cmd install -d -m 0755 "$(root_path /etc/letsencrypt/renewal-hooks/deploy)"
+    run_cmd install -m 0755 "$source_dir/etc/letsencrypt/renewal-hooks/deploy/serverctl-reload-nginx" "$(root_path /etc/letsencrypt/renewal-hooks/deploy/serverctl-reload-nginx)"
+  fi
   if [[ -f "$source_dir/etc/tmpfiles.d/serverctl.conf" ]]; then
     tmpfiles_file="$(root_path /etc/tmpfiles.d/serverctl.conf)"
     run_cmd install -d -m 0755 "$(root_path /etc/tmpfiles.d)"
@@ -244,7 +268,7 @@ serverctl_update_source() {
   if [[ -d "$source_dir/dashboard" ]]; then
     dashboard_dir="$(root_path /opt/serverctl/dashboard)"
     run_cmd install -d -m 0755 -o root -g root "$dashboard_dir"
-    run_cmd cp -a -- "$source_dir/dashboard/." "$dashboard_dir/"
+    run_cmd rsync -a --delete -- "$source_dir/dashboard/" "$dashboard_dir/"
     run_cmd chown -R root:root "$dashboard_dir"
     run_cmd find "$dashboard_dir" -type d -path "$dashboard_dir/public*" -exec chmod 0755 {} +
     run_cmd find "$dashboard_dir" -type f -path "$dashboard_dir/public/*" -exec chmod 0644 {} +
@@ -261,6 +285,9 @@ serverctl_update_source() {
     run_cmd touch "$dashboard_state/audit.log"
     run_cmd chown www-data:www-data "$dashboard_state/audit.log"
     run_cmd chmod 0640 "$dashboard_state/audit.log"
+  fi
+  if [[ -f "$source_dir/etc/serverctl-cron-run" ]]; then
+    run_cmd "$(root_path /opt/serverctl/bin/serverctl)" --yes cron refresh
   fi
   if [[ "$old_revision" == "$new_revision" ]]; then
     ok "serverctl is already up to date (${new_revision:0:12})."

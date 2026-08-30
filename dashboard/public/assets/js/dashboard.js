@@ -169,7 +169,15 @@
         if (data.updates?.reboot_required === 'yes') alerts.push('A system reboot is required.');
         if (services.nginx !== 'running') alerts.push('Nginx is not running.');
         const alertRoot = qs('[data-alerts]');
-        if (alertRoot) alertRoot.innerHTML = alerts.map((alert) => `<div class="alert alert-warning">${escapeText(alert)}</div>`).join('');
+        if (alertRoot) {
+            alertRoot.replaceChildren();
+            alerts.forEach((alert) => {
+                const item = document.createElement('div');
+                item.className = 'alert alert-warning';
+                item.textContent = escapeText(alert);
+                alertRoot.appendChild(item);
+            });
+        }
         setText('[data-last-updated]', `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
     };
 
@@ -224,12 +232,12 @@
     };
 
     const beginCronEdit = (job) => {
-        if (job.type !== 'website') { showToast('Only Website Cron jobs can be edited in the Dashboard.', true); return; }
+        if (job.type !== 'website' || !job.editable_script) { showToast('This Cron command must be edited from serverctl because it contains custom arguments or paths.', true); return; }
         if (cronEditId) cronEditId.value = String(job.id);
         if (cronFormTitle) cronFormTitle.textContent = `Edit Website Cron Job #${job.id}`;
         if (cronCancel) cronCancel.hidden = false;
         if (qs('[data-cron-website]')) qs('[data-cron-website]').value = job.website || '';
-        if (qs('[data-cron-script]')) qs('[data-cron-script]').value = (job.command || '').split(' ').pop() || '';
+        if (qs('[data-cron-script]')) qs('[data-cron-script]').value = job.editable_script;
         if (qs('[data-cron-description]')) qs('[data-cron-description]').value = job.description || '';
         if (qs('[data-cron-enabled]')) qs('[data-cron-enabled]').checked = job.enabled === 'yes';
         const preset = [...(cronSchedule?.options || [])].find((option) => option.value === job.schedule);
@@ -264,7 +272,7 @@
             const actions = document.createElement('td'); actions.className = 'cron-actions';
             const addAction = (label, action, danger = false) => { const button = document.createElement('button'); button.type = 'button'; button.className = `button ${danger ? 'button-danger' : 'button-secondary'} button-small`; button.textContent = label; button.dataset.cronAction = action; button.dataset.cronId = String(job.id); actions.appendChild(button); };
             addAction('View', 'view');
-            if (job.type === 'website') addAction('Edit', 'edit');
+            if (job.type === 'website' && job.editable_script) addAction('Edit', 'edit');
             addAction(job.enabled === 'yes' ? 'Disable' : 'Enable', job.enabled === 'yes' ? 'disable' : 'enable');
             addAction('Run Now', 'run');
             addAction('Delete', 'delete', true);

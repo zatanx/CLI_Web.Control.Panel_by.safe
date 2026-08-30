@@ -31,20 +31,43 @@ function dashboard_rate_file(): string
 function dashboard_rate_data(): array
 {
     $file = dashboard_rate_file();
-    if (!is_readable($file)) {
+    $handle = @fopen($file, 'rb');
+    if ($handle === false) {
         return [];
     }
-    $data = json_decode((string) file_get_contents($file), true);
+    if (!flock($handle, LOCK_SH)) {
+        fclose($handle);
+        return [];
+    }
+    $data = json_decode((string) stream_get_contents($handle), true);
+    flock($handle, LOCK_UN);
+    fclose($handle);
     return is_array($data) ? $data : [];
 }
 
-function dashboard_save_rate_data(array $data): void
+function dashboard_update_rate_data(callable $update): void
 {
     $directory = dashboard_state_dir();
     if (!is_dir($directory)) {
         return;
     }
-    @file_put_contents(dashboard_rate_file(), json_encode($data), LOCK_EX);
+    $handle = @fopen(dashboard_rate_file(), 'c+');
+    if ($handle === false) {
+        return;
+    }
+    if (!flock($handle, LOCK_EX)) {
+        fclose($handle);
+        return;
+    }
+    rewind($handle);
+    $data = json_decode((string) stream_get_contents($handle), true);
+    $data = $update(is_array($data) ? $data : []);
+    rewind($handle);
+    ftruncate($handle, 0);
+    fwrite($handle, (string) json_encode($data, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE));
+    fflush($handle);
+    flock($handle, LOCK_UN);
+    fclose($handle);
     @chmod(dashboard_rate_file(), 0640);
 }
 
@@ -58,23 +81,31 @@ function dashboard_login_allowed(string $ip): bool
 
 function dashboard_record_login_failure(string $ip): void
 {
-    $data = dashboard_rate_data();
     $now = time();
-    $entry = $data[$ip] ?? ['attempts' => [], 'locked_until' => 0];
-    $attempts = array_values(array_filter((array) ($entry['attempts'] ?? []), static fn ($item): bool => (int) $item > $now - 900));
-    $attempts[] = $now;
-    $data[$ip] = [
-        'attempts' => $attempts,
-        'locked_until' => count($attempts) >= 5 ? $now + 900 : 0,
-    ];
-    dashboard_save_rate_data($data);
+    dashboard_update_rate_data(static function (array $data) use ($ip, $now): array {
+        foreach ($data as $address => $item) {
+            $recent = array_filter((array) ($item['attempts'] ?? []), static fn ($attempt): bool => (int) $attempt > $now - 900);
+            if ($recent === [] && (int) ($item['locked_until'] ?? 0) <= $now) {
+                unset($data[$address]);
+            }
+        }
+        $entry = $data[$ip] ?? ['attempts' => [], 'locked_until' => 0];
+        $attempts = array_values(array_filter((array) ($entry['attempts'] ?? []), static fn ($item): bool => (int) $item > $now - 900));
+        $attempts[] = $now;
+        $data[$ip] = [
+            'attempts' => $attempts,
+            'locked_until' => count($attempts) >= 5 ? $now + 900 : 0,
+        ];
+        return $data;
+    });
 }
 
 function dashboard_record_login_success(string $ip): void
 {
-    $data = dashboard_rate_data();
-    unset($data[$ip]);
-    dashboard_save_rate_data($data);
+    dashboard_update_rate_data(static function (array $data) use ($ip): array {
+        unset($data[$ip]);
+        return $data;
+    });
 }
 
 function dashboard_login(string $username, string $password, string $bot_token = ''): bool

@@ -1,6 +1,6 @@
 # Security ( English )
 
-Documentation version: v1.1.15 (2026-08-30)
+Documentation version: v1.1.16 (2026-08-31)
 
 ## Defaults
 
@@ -33,7 +33,7 @@ Token verification requires outbound HTTPS access to the selected provider.
 
 # ความปลอดภัย ( ไทย )
 
-เวอร์ชันเอกสาร: v1.1.15 (30-08-2026)
+เวอร์ชันเอกสาร: v1.1.16 (31-08-2026)
 
 ## ค่าเริ่มต้น
 

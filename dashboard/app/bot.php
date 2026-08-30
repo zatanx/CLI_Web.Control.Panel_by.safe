@@ -78,7 +78,7 @@ function dashboard_bot_verify_login(string $token): bool
     ];
     if ($provider === 'recaptcha_v3') {
         $response = dashboard_bot_verify_request('https://www.google.com/recaptcha/api/siteverify', $payload);
-        if (($response['success'] ?? false) !== true || ($response['action'] ?? '') !== 'login') {
+        if (($response['success'] ?? false) !== true || ($response['action'] ?? '') !== 'login' || !dashboard_bot_hostname_matches($response)) {
             error_log('[serverctl-dashboard] reCAPTCHA login verification failed.');
             return false;
         }
@@ -92,9 +92,19 @@ function dashboard_bot_verify_login(string $token): bool
         return true;
     }
     $response = dashboard_bot_verify_request('https://challenges.cloudflare.com/turnstile/v0/siteverify', $payload);
-    if (($response['success'] ?? false) !== true) {
+    if (($response['success'] ?? false) !== true || !dashboard_bot_hostname_matches($response)) {
         error_log('[serverctl-dashboard] Turnstile login verification failed.');
         return false;
     }
     return true;
+}
+
+function dashboard_bot_hostname_matches(?array $response): bool
+{
+    if ($response === null) {
+        return false;
+    }
+    $expected = strtolower(rtrim(trim((string) dashboard_config('DASHBOARD_DOMAIN', '')), '.'));
+    $actual = strtolower(rtrim(trim((string) ($response['hostname'] ?? '')), '.'));
+    return $expected !== '' && $actual !== '' && hash_equals($expected, $actual);
 }

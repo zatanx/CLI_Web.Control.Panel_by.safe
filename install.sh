@@ -6,7 +6,7 @@ export PATH
 CDPATH=; export CDPATH
 
 readonly INSTALL_LOG=/var/log/serverctl/install.log
-readonly SERVERCTL_VERSION=1.1.15 SERVERCTL_RELEASE_DATE=2026-08-30
+readonly SERVERCTL_VERSION=1.1.16 SERVERCTL_RELEASE_DATE=2026-08-31
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROFILE=minimal
 DEFAULT_PHP=8.3
@@ -104,7 +104,7 @@ preflight() {
 install_packages() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
-  apt-get install -y --no-install-recommends ca-certificates curl gnupg nginx mariadb-server certbot ufw apparmor apparmor-utils unattended-upgrades logrotate openssl rsync acl psmisc
+  apt-get install -y --no-install-recommends ca-certificates curl gnupg git nginx mariadb-server certbot cron openssh-server ufw apparmor apparmor-utils unattended-upgrades logrotate openssl rsync acl psmisc
   if [[ "$ENABLE_PHP_PPA" == 1 ]]; then
     apt-get install -y --no-install-recommends software-properties-common
     add-apt-repository -y ppa:ondrej/php
@@ -242,14 +242,14 @@ configure_admin_group() {
 
 enable_services() {
   local version
-  systemctl enable --now nginx mariadb apparmor
+  systemctl enable --now nginx mariadb cron apparmor
   for version in "${PHP_VERSIONS[@]}"; do systemctl enable --now "php$version-fpm"; done
   dpkg-reconfigure -f noninteractive unattended-upgrades
   systemctl daemon-reload
   systemctl enable --now certbot.timer serverctl-backup.timer serverctl-security-scan.timer
   nginx -t
   for version in "${PHP_VERSIONS[@]}"; do "php-fpm$version" -t; done
-  systemctl is-active --quiet nginx mariadb apparmor
+  systemctl is-active --quiet nginx mariadb cron apparmor
   aa-status --enabled
   ok 'Services enabled and configuration validation passed.'
 }
@@ -265,7 +265,7 @@ Version      : v$SERVERCTL_VERSION
 Default PHP  : $DEFAULT_PHP
 PHP versions : ${PHP_VERSIONS[*]}
 Management   : SSH + sudo serverctl
-  Web panel    : Dashboard source installed (not enabled)
+Web panel    : Dashboard source installed (not enabled)
 Firewall     : $(ufw status | sed -n 's/Status: //p')
 Install log  : $INSTALL_LOG
 

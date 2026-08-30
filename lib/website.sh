@@ -121,7 +121,7 @@ EOF
     die "Validation failed; website configuration rolled back." "$EXIT_VALIDATION"
   fi
   save_website_record "$domain" "$php" "$user" no online yes "$document_root"
-  ok "Website created: http://$domain ($site_root/public)"
+  ok "Website created: http://$domain ($document_root)"
   printf 'SFTP User: %s\nPassword:  %s\nHost:      %s\nPort:      22\nPath:      /public\n' "$user" "$sftp_password" "$domain"
 }
 

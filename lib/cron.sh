@@ -27,6 +27,7 @@ cron_valid_id() { [[ "${1:-}" =~ ^[1-9][0-9]{0,8}$ ]]; }
 
 cron_validate_field() {
   local value=${1:-} minimum=${2:-0} maximum=${3:-0} part base step start end number
+  local -a parts
   [[ "$value" =~ ^[-0-9,/*]+$ ]] || return 1
   IFS=',' read -r -a parts <<< "$value"
   ((${#parts[@]} > 0)) || return 1
@@ -215,7 +216,7 @@ cron_next_run() {
     read -r date_value day_value month_value weekday_value <<< "$date_value"
     [[ "$day_value" =~ ^[0-9]+$ && "$month_value" =~ ^[0-9]+$ && "$weekday_value" =~ ^[0-9]+$ ]] || break
     day_value=$((10#$day_value)); month_value=$((10#$month_value)); weekday_value=$((10#$weekday_value))
-    if cron_field_matches "$CRON_DAY" "$day_value" 1 31 && cron_field_matches "$CRON_MONTH" "$month_value" 1 12 && cron_field_matches "$CRON_WEEKDAY" "$weekday_value" 0 7; then
+    if cron_date_matches "$CRON_DAY" "$CRON_MONTH" "$CRON_WEEKDAY" "$day_value" "$month_value" "$weekday_value"; then
       for ((hour=0; hour<=23; hour++)); do
         cron_field_matches "$CRON_HOUR" "$hour" 0 23 || continue
         for ((minute=0; minute<=59; minute++)); do
@@ -230,19 +231,33 @@ cron_next_run() {
   printf '—'
 }
 
+cron_date_matches() {
+  local day_expression=$1 month_expression=$2 weekday_expression=$3 day_value=$4 month_value=$5 weekday_value=$6
+  local day_matches=0 weekday_matches=0
+  cron_field_matches "$month_expression" "$month_value" 1 12 || return 1
+  cron_field_matches "$day_expression" "$day_value" 1 31 && day_matches=1
+  cron_field_matches "$weekday_expression" "$weekday_value" 0 7 && weekday_matches=1
+  if [[ "$day_expression" == '*' ]]; then ((weekday_matches)); return; fi
+  if [[ "$weekday_expression" == '*' ]]; then ((day_matches)); return; fi
+  ((day_matches || weekday_matches))
+}
+
 cron_token_matches() {
   local token=$1 value=$2 minimum=$3 maximum=$4 base step start end
   step=1; base=$token
   if [[ "$token" == */* ]]; then base=${token%%/*}; step=${token##*/}; fi
   if [[ "$base" == '*' ]]; then start=$minimum; end=$maximum
   elif [[ "$base" =~ ^([0-9]+)-([0-9]+)$ ]]; then start=${BASH_REMATCH[1]}; end=${BASH_REMATCH[2]}
-  elif [[ "$base" =~ ^[0-9]+$ ]]; then start=$base; end=$base
+  elif [[ "$base" =~ ^[0-9]+$ ]]; then
+    start=$base
+    if [[ "$token" == */* ]]; then end=$maximum; else end=$base; fi
   else return 1; fi
   ((value >= 10#$start && value <= 10#$end && (value - 10#$start) % 10#$step == 0))
 }
 
 cron_field_matches() {
   local expression=$1 value=$2 minimum=$3 maximum=$4 token
+  local -a tokens
   IFS=',' read -r -a tokens <<< "$expression"
   for token in "${tokens[@]}"; do
     cron_token_matches "$token" "$value" "$minimum" "$maximum" && return 0
@@ -263,14 +278,14 @@ cron_validate_record() {
 }
 
 cron_prepare_job_files() {
-  local id=$1 user=$2
+  local id=$1
   mkdir -p -- "$(cron_log_dir)" "$(dirname "$(cron_lock_path "$id")")"
   chmod 0755 "$(cron_log_dir)" 2>/dev/null || true
   touch -- "$(cron_log_path "$id")" "$(cron_lock_path "$id")"
   chmod 0600 "$(cron_log_path "$id")" 2>/dev/null || true
-  chmod 0666 "$(cron_lock_path "$id")" 2>/dev/null || true
+  chmod 0600 "$(cron_lock_path "$id")" 2>/dev/null || true
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
-    chown "$user:" "$(cron_log_path "$id")" 2>/dev/null || true
+    chown root:root "$(cron_log_path "$id")" 2>/dev/null || true
     chown root:root "$(cron_lock_path "$id")" 2>/dev/null || true
   fi
 }
@@ -310,9 +325,11 @@ cron_next_id() {
 }
 
 cron_render_line() {
-  local record=$1 id user schedule
-  id=$(record_get "$record" ID); user=$(record_get "$record" USER); schedule=$(record_get "$record" SCHEDULE)
-  printf '%s %s %s %s >> %s 2>&1 # serverctl-managed\n' "$schedule" "$user" "$CRON_EXECUTABLE" "$id" "$(cron_log_path "$id")"
+  local record=$1 id schedule
+  id=$(record_get "$record" ID); schedule=$(record_get "$record" SCHEDULE)
+  # The trusted helper must run as root so it can read root-owned records and
+  # libraries. cron_execute_command drops privileges to the configured user.
+  printf '%s root %s %s >> %s 2>&1 # serverctl-managed\n' "$schedule" "$CRON_EXECUTABLE" "$id" "$(cron_log_path "$id")"
 }
 
 cron_render_all() {
@@ -445,7 +462,7 @@ cron_run_common() {
   local stdout_file stderr_file
   id=$(record_get "$record" ID); user=$(record_get "$record" USER); command=$(record_get "$record" COMMAND)
   if [[ "$scheduled" == yes && "$SERVERCTL_TEST_MODE" != 1 ]]; then
-    [[ "$(id -un)" == "$user" ]] || { printf 'Cron user mismatch.\n' >&2; return "$EXIT_PERMISSION"; }
+    [[ ${EUID:-$(id -u)} -eq 0 ]] || { printf 'Scheduled Cron helper must run as root.\n' >&2; return "$EXIT_PERMISSION"; }
   fi
   if ! cron_lock_acquire "$id"; then
     printf 'SKIPPED\n'
@@ -501,15 +518,36 @@ cron_scheduled_run() {
 }
 
 cron_job_json() {
-  local record=$1 id user schedule command description enabled type website last_run last_exit last_status next
+  local record=$1 id user schedule command description enabled type website last_run last_exit last_status next editable_script=''
+  local website_record document_root
+  local -a editable_parts
   id=$(record_get "$record" ID); user=$(record_get "$record" USER); schedule=$(record_get "$record" SCHEDULE)
   command=$(record_get "$record" COMMAND); description=$(record_get "$record" DESCRIPTION || true); enabled=$(record_get "$record" ENABLED)
   type=$(record_get "$record" TYPE); website=$(record_get "$record" WEBSITE || true); last_run=$(record_get "$record" LAST_RUN || true)
   last_exit=$(record_get "$record" LAST_EXIT_CODE || printf -- -); last_status=$(record_get "$record" LAST_STATUS || printf NEVER); next=$(cron_next_run "$schedule")
-  printf '{"id":%s,"user":%s,"schedule":%s,"command":%s,"description":%s,"status":%s,"enabled":%s,"type":%s,"website":%s,"last_run":%s,"last_exit_code":%s,"last_status":%s,"next_run":%s}' \
+  if [[ "$type" == website ]] && cron_split_command "$command"; then
+    editable_parts=("${CRON_COMMAND_PARTS[@]}")
+    website_record=$(website_record_path "$website")
+    document_root=$(record_get "$website_record" DOCUMENT_ROOT || true)
+    if ((${#editable_parts[@]} == 2)) && [[ -n "$document_root" && "${editable_parts[1]}" == "$document_root/"* ]]; then
+      editable_script=${editable_parts[1]#"$document_root/"}
+      [[ "$editable_script" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$ ]] || editable_script=''
+    fi
+  fi
+  printf '{"id":%s,"user":%s,"schedule":%s,"command":%s,"description":%s,"status":%s,"enabled":%s,"type":%s,"website":%s,"editable_script":%s,"last_run":%s,"last_exit_code":%s,"last_status":%s,"next_run":%s}' \
     "$(cron_json_number "$id")" "$(cron_json_string "$user")" "$(cron_json_string "$schedule")" "$(cron_json_string "$command")" "$(cron_json_string "$description")" \
-    "$(cron_json_string "$([[ "$enabled" == yes ]] && printf ENABLED || printf DISABLED)")" "$(cron_json_string "$enabled")" "$(cron_json_string "$type")" "$(cron_json_string "$website")" \
+    "$(cron_json_string "$([[ "$enabled" == yes ]] && printf ENABLED || printf DISABLED)")" "$(cron_json_string "$enabled")" "$(cron_json_string "$type")" "$(cron_json_string "$website")" "$(cron_json_string "$editable_script")" \
     "$(cron_json_string "$last_run")" "$(cron_json_string "$last_exit")" "$(cron_json_string "$last_status")" "$(cron_json_string "$next")"
+}
+
+cron_refresh() {
+  require_root
+  with_lock cron-config cron_refresh_locked
+}
+
+cron_refresh_locked() {
+  cron_render_all
+  ok 'Managed Cron configuration refreshed.'
 }
 
 cron_jobs_json() {
@@ -750,6 +788,7 @@ cmd_cron() {
     logs) require_root; (($# >= 1 && $# <= 2)) || die 'Usage: serverctl cron logs ID [50|100|500].' "$EXIT_INVALID_ARGUMENT"; get_cron_logs "$1" "${2:-100}" || die 'Invalid Cron log request.' "$EXIT_VALIDATION";;
     validate) (($# == 1)) || die 'cron validate requires a five-field expression.' "$EXIT_INVALID_ARGUMENT"; if cron_validate_expression "$1"; then printf '[OK] Valid cron expression.\n'; else error 'Invalid cron expression.'; return "$EXIT_VALIDATION"; fi;;
     status) (($# == 0)) || die 'cron status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; require_root; get_cron_status;;
+    refresh) (($# == 0)) || die 'cron refresh accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; cron_refresh;;
     system) (($# == 0)) || die 'cron system accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; require_root; cron_system_view;;
     website)
       local website_sub=${1:-}; shift || true
@@ -760,7 +799,7 @@ cmd_cron() {
       esac;;
     restore) (($# == 1)) || die 'cron restore requires a backup name.' "$EXIT_INVALID_ARGUMENT"; require_root; cron_restore_configuration "$1";;
     _run-scheduled) (($# == 1)) || return "$EXIT_INVALID_ARGUMENT"; cron_scheduled_run "$1";;
-    *) die 'Usage: serverctl cron <list|add|edit|enable|disable|run|delete|logs|validate|status|system|website|restore>.' "$EXIT_INVALID_ARGUMENT";;
+    *) die 'Usage: serverctl cron <list|add|edit|enable|disable|run|delete|logs|validate|status|refresh|system|website|restore>.' "$EXIT_INVALID_ARGUMENT";;
   esac
 }
 

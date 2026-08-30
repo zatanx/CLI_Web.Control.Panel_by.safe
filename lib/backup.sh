@@ -158,10 +158,14 @@ extract_verified_backup() {
 }
 
 safe_archive_members() {
-  local archive=$1 member
+  local archive=$1 member listing
+  listing=$(tar -tzf "$archive") || return 1
   while IFS= read -r member; do
     [[ "$member" != /* && "$member" != ../* && "$member" != *'/../'* && "$member" != *'/..' ]] || return 1
-  done < <(tar -tzf "$archive")
+  done <<< "$listing"
+  # Symlinks are preserved by full configuration backups. Reject hard links,
+  # devices, sockets, and FIFOs before root extracts an imported archive.
+  tar -tvzf "$archive" | awk '{type=substr($1,1,1); if (type != "-" && type != "d" && type != "l") exit 1}'
 }
 
 backup_encrypt() {

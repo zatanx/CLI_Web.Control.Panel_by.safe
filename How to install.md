@@ -1,6 +1,6 @@
 # How to Install ( English )
 
-Documentation version: v1.1.10 (2026-08-16)
+Documentation version: v1.1.16 (2026-08-31)
 
 ## Requirements
 
@@ -81,7 +81,7 @@ sudo serverctl version
 
 # วิธีติดตั้ง ( ไทย )
 
-เวอร์ชันเอกสาร: v1.1.10 (16-08-2026)
+เวอร์ชันเอกสาร: v1.1.16 (31-08-2026)
 
 ## ความต้องการของระบบ
 

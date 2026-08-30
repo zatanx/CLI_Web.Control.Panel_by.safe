@@ -23,19 +23,22 @@ dashboard_json_number() {
   [[ "${1:-}" =~ ^-?[0-9]+$ ]] && printf '%s' "$1" || printf '0'
 }
 
-dashboard_config_set_value() {
-  local key=$1 value=$2 temporary line found=0
+dashboard_config_set_bot_values() {
+  local provider=$1 site_key=$2 secret=$3 temporary line
+  local found_provider=0 found_site_key=0 found_secret=0
   [[ -f "$DASHBOARD_CONFIG_FILE" ]] || die 'Dashboard configuration is not present.' "$EXIT_VALIDATION"
   temporary=$(mktemp "$(dirname "$DASHBOARD_CONFIG_FILE")/.dashboard-config.XXXXXX")
   while IFS= read -r line; do
-    if [[ "$line" == "$key="* ]]; then
-      printf '%s=%s\n' "$key" "$value" >> "$temporary"
-      found=1
-    else
-      printf '%s\n' "$line" >> "$temporary"
-    fi
+    case "$line" in
+      DASHBOARD_BOT_PROVIDER=*) printf 'DASHBOARD_BOT_PROVIDER=%s\n' "$provider" >> "$temporary"; found_provider=1 ;;
+      DASHBOARD_BOT_SITE_KEY=*) printf 'DASHBOARD_BOT_SITE_KEY=%s\n' "$site_key" >> "$temporary"; found_site_key=1 ;;
+      DASHBOARD_BOT_SECRET=*) printf 'DASHBOARD_BOT_SECRET=%s\n' "$secret" >> "$temporary"; found_secret=1 ;;
+      *) printf '%s\n' "$line" >> "$temporary" ;;
+    esac
   done < "$DASHBOARD_CONFIG_FILE"
-  ((found)) || printf '%s=%s\n' "$key" "$value" >> "$temporary"
+  ((found_provider)) || printf 'DASHBOARD_BOT_PROVIDER=%s\n' "$provider" >> "$temporary"
+  ((found_site_key)) || printf 'DASHBOARD_BOT_SITE_KEY=%s\n' "$site_key" >> "$temporary"
+  ((found_secret)) || printf 'DASHBOARD_BOT_SECRET=%s\n' "$secret" >> "$temporary"
   chmod 0640 "$temporary"
   if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then chown root:www-data "$temporary"; fi
   mv -f -- "$temporary" "$DASHBOARD_CONFIG_FILE"
@@ -48,7 +51,7 @@ dashboard_validate_bot_value() {
 
 dashboard_bot_protection_set() {
   require_root
-  local provider=${1:-} site_key=${2:-} secret=${3:-}
+  local provider=${1:-} site_key=${2:-} secret=${3:-} had_nginx=0
   (($# == 3)) || die 'Usage: dashboard bot-protection set PROVIDER SITE_KEY --secret SECRET' "$EXIT_INVALID_ARGUMENT"
   [[ "$provider" == none || "$provider" == recaptcha_v3 || "$provider" == turnstile ]] || die 'Provider must be none, recaptcha_v3, or turnstile.' "$EXIT_VALIDATION"
   dashboard_validate_bot_value "$site_key" || die 'Invalid bot-protection site key.' "$EXIT_VALIDATION"
@@ -58,17 +61,29 @@ dashboard_bot_protection_set() {
   else
     [[ -n "$site_key" && -n "$secret" ]] || die 'A site key and secret are required when bot protection is enabled.' "$EXIT_VALIDATION"
   fi
-  dashboard_config_set_value DASHBOARD_BOT_PROVIDER "$provider"
-  dashboard_config_set_value DASHBOARD_BOT_SITE_KEY "$site_key"
-  dashboard_config_set_value DASHBOARD_BOT_SECRET "$secret"
+  [[ -e "$DASHBOARD_NGINX_AVAILABLE" ]] && had_nginx=1
+  ROLLBACK_FILES=()
+  backup_config_file "$DASHBOARD_CONFIG_FILE"
+  backup_config_file "$DASHBOARD_NGINX_AVAILABLE"
+  dashboard_config_set_bot_values "$provider" "$site_key" "$secret"
   local domain local_mode dashboard_port cert_root
   domain=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_DOMAIN || true)
   local_mode=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_LOCAL_ONLY || printf no)
   dashboard_port=$(record_get "$DASHBOARD_CONFIG_FILE" DASHBOARD_PORT || printf 8088)
   if [[ "$local_mode" == yes ]]; then cert_root=''; else cert_root="$(root_path /etc/letsencrypt/live)/$domain"; fi
   dashboard_render_nginx "$domain" "/run/php/php${DEFAULT_PHP_VERSION}-fpm.sock" "$cert_root" "$local_mode" "$dashboard_port"
-  validate_nginx || die 'Nginx rejected the Dashboard bot-protection configuration.' "$EXIT_VALIDATION"
-  run_cmd systemctl reload nginx
+  if ! validate_nginx; then
+    rollback_configs
+    ((had_nginx)) || rm -f -- "$DASHBOARD_NGINX_AVAILABLE"
+    die 'Nginx rejected the Dashboard bot-protection configuration; previous settings restored.' "$EXIT_VALIDATION"
+  fi
+  if ! run_cmd systemctl reload nginx; then
+    rollback_configs
+    ((had_nginx)) || rm -f -- "$DASHBOARD_NGINX_AVAILABLE"
+    validate_nginx && run_cmd systemctl reload nginx || true
+    die 'Unable to reload Nginx; previous Dashboard bot-protection settings restored.' "$EXIT_SYSTEM"
+  fi
+  commit_configs
   audit_event 'dashboard bot protection set' SUCCESS "provider=$provider"
   ok "Dashboard bot protection: $provider"
 }

@@ -139,7 +139,7 @@ server {
     access_log $WEB_ROOT/$domain/logs/access.log;
     error_log $WEB_ROOT/$domain/logs/error.log warn;
     include $access_file;
-    location ^~ /.well-known/acme-challenge/ { allow all; }
+    location ^~ /.well-known/acme-challenge/ { root $WEB_ROOT/$domain/public; allow all; }
 $static_block
     location / {
         limit_req zone=serverctl_per_ip burst=$rate_burst nodelay;
