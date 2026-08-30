@@ -6,7 +6,7 @@ export PATH
 CDPATH=; export CDPATH
 
 readonly INSTALL_LOG=/var/log/serverctl/install.log
-readonly SERVERCTL_VERSION=1.1.14 SERVERCTL_RELEASE_DATE=2026-08-30
+readonly SERVERCTL_VERSION=1.1.15 SERVERCTL_RELEASE_DATE=2026-08-30
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROFILE=minimal
 DEFAULT_PHP=8.3

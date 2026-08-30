@@ -123,7 +123,8 @@ cron_validate_command() {
 }
 
 cron_parse_full_line() {
-  local line=${1:-} schedule command token first last
+  local line=${1:-} schedule command token first last value
+  local index
   local -a fields command_parts normalized_parts
   CRON_PARSED_SCHEDULE=''
   CRON_PARSED_COMMAND=''
@@ -131,6 +132,13 @@ cron_parse_full_line() {
   [[ -n "$line" && ${#line} -le 8192 && "$line" != *$'\n'* && "$line" != *$'\r'* ]] || return 1
   read -r -a fields <<< "$line"
   ((${#fields[@]} >= 6)) || return 1
+  # Accept asterisks escaped for Markdown or copy/paste (\*) in schedule
+  # fields only. Any other backslash remains and is rejected by validation.
+  for ((index=0; index<5; index++)); do
+    while [[ "${fields[index]}" == *'\*'* ]]; do
+      fields[index]=${fields[index]/'\*'/'*'}
+    done
+  done
   schedule="${fields[0]} ${fields[1]} ${fields[2]} ${fields[3]} ${fields[4]}"
   cron_validate_expression "$schedule" || return 1
   command_parts=("${fields[@]:5}")
@@ -139,6 +147,13 @@ cron_parse_full_line() {
     if [[ "$first" == "'" || "$first" == '"' ]]; then
       [[ ${#token} -ge 2 && "$last" == "$first" ]] || return 1
       token=${token:1:${#token}-2}
+    elif [[ "$token" == *=* ]]; then
+      # Normalize safe option values such as --root='/absolute/path'.
+      value=${token#*=}; first=${value:0:1}; last=${value: -1}
+      if [[ "$first" == "'" || "$first" == '"' ]]; then
+        [[ ${#value} -ge 2 && "$last" == "$first" ]] || return 1
+        token="${token%%=*}=${value:1:${#value}-2}"
+      fi
     fi
     [[ -n "$token" && "$token" != *"'"* && "$token" != *'"'* ]] || return 1
     normalized_parts+=("$token")

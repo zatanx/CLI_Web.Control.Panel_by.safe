@@ -1,6 +1,6 @@
 # serverctl ( English )
 
-Documentation version: v1.1.14 (2026-08-30)
+Documentation version: v1.1.15 (2026-08-30)
 
 `serverctl` is a lightweight web hosting manager for Ubuntu Server. It manages Nginx, isolated PHP-FPM pools, MariaDB, Let's Encrypt, UFW, AppArmor, backups, updates, health checks, and security audits. An optional PHP/Nginx Dashboard is available without adding Node.js or an administration daemon.
 
@@ -48,7 +48,7 @@ Read the installation guide in [How to install](How%20to%20install.md).
 
 # serverctl ( ไทย )
 
-เวอร์ชันเอกสาร: v1.1.14 (30-08-2026)
+เวอร์ชันเอกสาร: v1.1.15 (30-08-2026)
 
 `serverctl` คือระบบจัดการเว็บโฮสติ้งแบบเบาสำหรับ Ubuntu Server ใช้จัดการ Nginx, PHP-FPM pool แบบแยกเว็บไซต์, MariaDB, Let's Encrypt, UFW, AppArmor, การสำรองข้อมูล, การอัปเดต, การตรวจสอบสุขภาพระบบ และการตรวจสอบความปลอดภัย นอกจากนี้ยังมี Dashboard แบบ PHP/Nginx ให้ใช้งานโดยไม่ต้องติดตั้ง Node.js หรือ daemon สำหรับจัดการระบบ
 
