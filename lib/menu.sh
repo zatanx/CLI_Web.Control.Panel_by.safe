@@ -24,12 +24,11 @@ interactive_menu() {
 8.  Security Status
 9.  Server Status
 10. Firewall
-11. Fail2Ban
-12. System Update
-13. Nginx
-14. SFTP Users
-15. Cron Jobs
-16. Exit
+11. System Update
+12. Nginx
+13. SFTP Users
+14. Cron Jobs
+15. Exit
 ========================================
 EOF
     printf 'Select option: '; read -r choice
@@ -44,12 +43,11 @@ EOF
       8) security_status || true; menu_pause ;;
       9) status_once; menu_pause ;;
       10) menu_firewall ;;
-      11) fail2ban-client status || true; menu_pause ;;
-      12) menu_system_update ;;
-      13) menu_nginx ;;
-      14) menu_sftp ;;
-      15) menu_cron ;;
-      16) return 0 ;;
+      11) menu_system_update ;;
+      12) menu_nginx ;;
+      13) menu_sftp ;;
+      14) menu_cron ;;
+      15) return 0 ;;
       *) warn 'Invalid option.'; sleep 1 ;;
     esac
   done
@@ -359,8 +357,8 @@ menu_cron() {
 
 menu_logs() {
   local choice type
-  printf '1. Nginx Error\n2. PHP-FPM\n3. MariaDB\n4. Fail2Ban\n5. Firewall\n6. System\n7. Serverctl\n8. Back\nSelect: '; read -r choice
-  case "$choice" in 1) type=nginx ;; 2) type=php ;; 3) type=mariadb ;; 4) type=fail2ban ;; 5) type=firewall ;; 6) type=system ;; 7) type=serverctl ;; *) return ;; esac
+  printf '1. Nginx Error\n2. PHP-FPM\n3. MariaDB\n4. Firewall\n5. System\n6. Serverctl\n7. Back\nSelect: '; read -r choice
+  case "$choice" in 1) type=nginx ;; 2) type=php ;; 3) type=mariadb ;; 4) type=firewall ;; 5) type=system ;; 6) type=serverctl ;; *) return ;; esac
   menu_exec logs "$type" --lines 100; menu_pause
 }
 

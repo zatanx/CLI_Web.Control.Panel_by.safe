@@ -168,9 +168,9 @@ dashboard_snapshot() {
     "$(dashboard_json_number "$cpu")" "$(dashboard_json_number "$ram")" "$(dashboard_json_number "$disk")" \
     "$(dashboard_json_number "$memory_used")" "$(dashboard_json_number "$memory_total")" \
     "$(dashboard_json_number "$disk_used_bytes")" "$(dashboard_json_number "$disk_total_bytes")"
-  printf '"services":{"nginx":%s,"php_fpm":%s,"mariadb":%s,"fail2ban":%s,"firewall":%s},' \
+  printf '"services":{"nginx":%s,"php_fpm":%s,"mariadb":%s,"firewall":%s},' \
     "$(dashboard_json_string "$(dashboard_service_state nginx)")" "$(dashboard_json_string "$php_state")" \
-    "$(dashboard_json_string "$(dashboard_service_state mariadb)")" "$(dashboard_json_string "$(dashboard_service_state fail2ban)")" \
+    "$(dashboard_json_string "$(dashboard_service_state mariadb)")" \
     "$(dashboard_json_string "$(ufw status 2>/dev/null | grep -q 'Status: active' && printf running || printf stopped)")"
   printf '"websites":{"total":%s,"https":%s,"ssl_expiring":%s},' "$(dashboard_json_number "$websites")" "$(dashboard_json_number "$https")" "$(dashboard_json_number "$expiring")"
   printf '"updates":{"available":%s,"security":%s,"reboot_required":%s},' "$(dashboard_json_number "$updates")" "$(dashboard_json_number "$security_updates")" "$(dashboard_json_string "$reboot")"
@@ -178,37 +178,6 @@ dashboard_snapshot() {
     "$(dashboard_json_number "$security_score")" "$(dashboard_json_string "$version")" \
     "$(dashboard_json_string "$bot_provider")" "$(dashboard_json_string "$bot_enabled")" \
     "$(dashboard_json_string "$bot_site_key")" "$(dashboard_json_string "$bot_secret_configured")"
-}
-
-dashboard_fail2ban() {
-  require_root
-  local summary jail_list jail jail_status current_raw banned_line ip total=0 first_jail=1 first_ip
-  local jails_json='' ips_json=''
-  local -a ip_values=()
-  if ! has_command fail2ban-client || ! service_is_active fail2ban; then
-    printf '{"status":"success","data":{"service":"stopped","total_banned":0,"jails":[]}}\n'
-    return 0
-  fi
-  summary=$(fail2ban-client status 2>/dev/null || true)
-  jail_list=$(sed -n 's/.*Jail list:[[:space:]]*//p' <<< "$summary" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-  while IFS= read -r jail; do
-    [[ -n "$jail" ]] || continue
-    jail_status=$(fail2ban-client status "$jail" 2>/dev/null || true)
-    current_raw=$(sed -n 's/.*Currently banned:[[:space:]]*//p' <<< "$jail_status" | head -1)
-    [[ "$current_raw" =~ ^[0-9]+$ ]] || current_raw=0
-    total=$((total + current_raw))
-    banned_line=$(sed -n 's/.*Banned IP list:[[:space:]]*//p' <<< "$jail_status" | head -1)
-    ips_json=''; first_ip=1; ip_values=()
-    read -r -a ip_values <<< "$banned_line" || true
-    for ip in "${ip_values[@]}"; do
-      if ((first_ip)); then first_ip=0; else ips_json+=','; fi
-      ips_json+="$(dashboard_json_string "$ip")"
-    done
-    if ((first_jail)); then first_jail=0; else jails_json+=','; fi
-    jails_json+=$(printf '{"name":%s,"currently_banned":%s,"banned_ips":[%s]}' \
-      "$(dashboard_json_string "$jail")" "$current_raw" "$ips_json")
-  done <<< "$jail_list"
-  printf '{"status":"success","data":{"service":"running","total_banned":%s,"jails":[%s]}}\n' "$total" "$jails_json"
 }
 
 dashboard_websites() {
@@ -263,7 +232,6 @@ dashboard_logs() {
     nginx-access) file=$(root_path /var/log/nginx/access.log) ;;
     nginx-error) file=$(root_path /var/log/nginx/error.log) ;;
     system) file=$(root_path /var/log/syslog) ;;
-    security) file=$(root_path /var/log/fail2ban.log) ;;
     audit) file=$AUDIT_LOG ;;
     *) die 'Unknown dashboard log type.' "$EXIT_INVALID_ARGUMENT" ;;
   esac
@@ -279,7 +247,6 @@ dashboard_action() {
     nginx-reload) (($# == 0)) || die 'nginx-reload accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; nginx_reload ;;
     nginx-restart) (($# == 0)) || die 'nginx-restart accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; nginx_restart ;;
     firewall-reload) (($# == 0)) || die 'firewall-reload accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; cmd_firewall reload ;;
-    fail2ban-unban) (($# == 1)) || die 'fail2ban-unban requires one IP address.' "$EXIT_INVALID_ARGUMENT"; fail2ban_ip unban "$1" ;;
     backup-all) (($# == 0)) || die 'backup-all accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; backup_create_all ;;
     backup-restore) (($# == 1)) || die 'backup-restore requires one archive name.' "$EXIT_INVALID_ARGUMENT"; backup_restore "$1" ;;
     website-remove) (($# == 1)) || die 'website-remove requires one domain.' "$EXIT_INVALID_ARGUMENT"; website_remove "$1" ;;
@@ -460,7 +427,6 @@ cmd_dashboard() {
     status) (($# == 0)) || die 'dashboard status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_status ;;
     snapshot) (($# == 0)) || die 'dashboard snapshot accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_snapshot ;;
     websites) (($# == 0)) || die 'dashboard websites accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_websites ;;
-    fail2ban) (($# == 0)) || die 'dashboard fail2ban accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_fail2ban ;;
     cron) (($# == 0)) || die 'dashboard cron accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron ;;
     cron-status) (($# == 0)) || die 'dashboard cron-status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron_status ;;
     cron-logs) (($# == 2)) || die 'dashboard cron-logs requires ID and line limit.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron_logs "$@" ;;
@@ -469,6 +435,6 @@ cmd_dashboard() {
     bot-protection) dashboard_bot_protection "$@" ;;
     install) dashboard_install "$@" ;;
     uninstall) dashboard_uninstall "$@" ;;
-    *) die 'Usage: serverctl dashboard <status|snapshot|websites|fail2ban|cron|cron-status|cron-logs|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
+    *) die 'Usage: serverctl dashboard <status|snapshot|websites|cron|cron-status|cron-logs|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }

@@ -1,8 +1,8 @@
 # serverctl ( English )
 
-Documentation version: v1.1.9 (2026-08-16)
+Documentation version: v1.1.14 (2026-08-30)
 
-`serverctl` is a lightweight web hosting manager for Ubuntu Server. It manages Nginx, isolated PHP-FPM pools, MariaDB, Let's Encrypt, UFW, Fail2Ban, AppArmor, backups, updates, health checks, and security audits. An optional PHP/Nginx Dashboard is available without adding Node.js or an administration daemon.
+`serverctl` is a lightweight web hosting manager for Ubuntu Server. It manages Nginx, isolated PHP-FPM pools, MariaDB, Let's Encrypt, UFW, AppArmor, backups, updates, health checks, and security audits. An optional PHP/Nginx Dashboard is available without adding Node.js or an administration daemon.
 
 ## Principles
 
@@ -38,7 +38,7 @@ For Ubuntu 22.04, or multi-PHP on Ubuntu 24.04, review the third-party repositor
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Web Dashboard](DASHBOARD.md)
 
-The interactive CLI interface has 15 main choices, including Database Management and SFTP Users. The optional Web Dashboard is a separate PHP-FPM application and is not added as a CLI menu item.
+The interactive CLI interface has 14 main choices, including Database Management and SFTP Users. The optional Web Dashboard is a separate PHP-FPM application and is not added as a CLI menu item.
 
 ## Getting started
 
@@ -48,9 +48,9 @@ Read the installation guide in [How to install](How%20to%20install.md).
 
 # serverctl ( ไทย )
 
-เวอร์ชันเอกสาร: v1.1.9 (16-08-2026)
+เวอร์ชันเอกสาร: v1.1.14 (30-08-2026)
 
-`serverctl` คือระบบจัดการเว็บโฮสติ้งแบบเบาสำหรับ Ubuntu Server ใช้จัดการ Nginx, PHP-FPM pool แบบแยกเว็บไซต์, MariaDB, Let's Encrypt, UFW, Fail2Ban, AppArmor, การสำรองข้อมูล, การอัปเดต, การตรวจสอบสุขภาพระบบ และการตรวจสอบความปลอดภัย นอกจากนี้ยังมี Dashboard แบบ PHP/Nginx ให้ใช้งานโดยไม่ต้องติดตั้ง Node.js หรือ daemon สำหรับจัดการระบบ
+`serverctl` คือระบบจัดการเว็บโฮสติ้งแบบเบาสำหรับ Ubuntu Server ใช้จัดการ Nginx, PHP-FPM pool แบบแยกเว็บไซต์, MariaDB, Let's Encrypt, UFW, AppArmor, การสำรองข้อมูล, การอัปเดต, การตรวจสอบสุขภาพระบบ และการตรวจสอบความปลอดภัย นอกจากนี้ยังมี Dashboard แบบ PHP/Nginx ให้ใช้งานโดยไม่ต้องติดตั้ง Node.js หรือ daemon สำหรับจัดการระบบ
 
 ## หลักการทำงาน
 
@@ -86,7 +86,7 @@ sudo serverctl ssl enable example.com --email admin@example.com
 - [การแก้ไขปัญหา](TROUBLESHOOTING.md)
 - [Web Dashboard](DASHBOARD.md)
 
-เมนู CLI แบบโต้ตอบมี 15 รายการหลัก รวม Database Management และ SFTP Users ส่วน Web Dashboard เป็นแอปพลิเคชัน PHP-FPM แยกต่างหากและไม่ได้เพิ่มเป็นรายการในเมนู CLI
+เมนู CLI แบบโต้ตอบมี 14 รายการหลัก รวม Database Management และ SFTP Users ส่วน Web Dashboard เป็นแอปพลิเคชัน PHP-FPM แยกต่างหากและไม่ได้เพิ่มเป็นรายการในเมนู CLI
 
 ## เริ่มติดตั้ง
 

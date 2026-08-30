@@ -1,12 +1,12 @@
 # Security ( English )
 
-Documentation version: v1.1.9 (2026-08-16)
+Documentation version: v1.1.14 (2026-08-30)
 
 ## Defaults
 
 - UFW denies incoming traffic except the detected SSH port, 80, and 443.
 - MariaDB binds to `127.0.0.1`; anonymous accounts, remote root rows, and the test database are removed.
-- Fail2Ban enables `sshd`, `nginx-http-auth`, `nginx-limit-req`, and Dashboard login protection; five failed Dashboard logins from one IP within ten minutes are blocked by UFW for one hour.
+- The Dashboard applies an internal per-IP login rate limit; five failed attempts within 15 minutes lock that source out for 15 minutes.
 - PHP disables display errors, URL includes, and exposure; strict and secure session cookies are enabled.
 - Nginx blocks dotfiles, `.env`, repository metadata, SQL/log files, and PHP execution below upload/file directories.
 - Site directories are never configured with mode `777`.
@@ -25,21 +25,21 @@ Before production, verify AppArmor profiles, external firewall policy, SSH allow
 
 Dashboard login protection supports Google reCAPTCHA v3 and Cloudflare Turnstile. The selected provider and keys are stored in the protected server configuration; the Secret Key is never displayed in the Dashboard.
 
-Login from localhost or a private/LAN IP bypasses the bot challenge. Login through a domain uses the configured challenge. Five failed logins from one IP within ten minutes trigger the Dashboard Fail2Ban jail, which blocks the IP with UFW for one hour.
+Login from localhost or a private/LAN IP bypasses the bot challenge. Login through a domain uses the configured challenge. Five failed logins from one IP within 15 minutes lock Dashboard login for that source for 15 minutes.
 
-Review blocked addresses in the Dashboard `Fail2Ban` menu or with `sudo serverctl fail2ban list`. Token verification requires outbound HTTPS access to the selected provider.
+Token verification requires outbound HTTPS access to the selected provider.
 
 ---
 
 # ความปลอดภัย ( ไทย )
 
-เวอร์ชันเอกสาร: v1.1.9 (16-08-2026)
+เวอร์ชันเอกสาร: v1.1.14 (30-08-2026)
 
 ## ค่าเริ่มต้น
 
 - UFW ปฏิเสธการเชื่อมต่อขาเข้าทั้งหมด ยกเว้น port SSH ที่ตรวจพบ, 80 และ 443
 - MariaDB bind ที่ `127.0.0.1` ลบบัญชี anonymous, รายการ root จากระยะไกล และฐานข้อมูล test
-- Fail2Ban เปิดใช้งาน `sshd`, `nginx-http-auth`, `nginx-limit-req` และการป้องกัน Login ของ Dashboard หาก Login Dashboard ผิดจาก IP เดียวกัน 5 ครั้งภายใน 10 นาที จะบล็อก IP ด้วย UFW เป็นเวลา 1 ชั่วโมง
+- Dashboard จำกัดการลอง Login แยกตาม IP ภายในระบบ หาก Login ผิด 5 ครั้งภายใน 15 นาที IP ต้นทางนั้นจะถูกล็อกไม่ให้ Login เป็นเวลา 15 นาที
 - PHP ปิดการแสดง error, URL include และการเปิดเผยข้อมูล พร้อมเปิดใช้ secure session cookie และ strict session mode
 - Nginx บล็อก dotfile, `.env`, metadata ของ repository, ไฟล์ SQL/log และการประมวลผล PHP ใต้ directory สำหรับ upload/file
 - ไม่กำหนดสิทธิ์ directory ของเว็บไซต์เป็น mode `777`
@@ -58,6 +58,6 @@ Audit log อยู่ที่ `/var/log/serverctl/audit.log` บันทึ�
 
 การป้องกันหน้า Login ของ Dashboard รองรับ Google reCAPTCHA v3 และ Cloudflare Turnstile Provider และ key ที่เลือกจะเก็บไว้ใน configuration ของ server ที่มีการป้องกัน โดยจะไม่แสดง Secret Key ใน Dashboard
 
-การ Login ผ่าน localhost หรือ Private/LAN IP จะไม่เรียก Bot challenge ส่วนการ Login ผ่าน domain จะใช้ challenge ตามที่ตั้งค่าไว้ หาก IP เดียวกัน Login ผิด 5 ครั้งภายใน 10 นาที Fail2Ban jail ของ Dashboard จะทำงานและบล็อก IP ด้วย UFW เป็นเวลา 1 ชั่วโมง
+การ Login ผ่าน localhost หรือ Private/LAN IP จะไม่เรียก Bot challenge ส่วนการ Login ผ่าน domain จะใช้ challenge ตามที่ตั้งค่าไว้ หาก IP เดียวกัน Login ผิด 5 ครั้งภายใน 15 นาที Dashboard จะล็อกการ Login จาก IP นั้นเป็นเวลา 15 นาที
 
-ตรวจสอบรายการ IP ที่ถูกบล็อกได้ที่ Dashboard เมนู `Fail2Ban` หรือใช้ `sudo serverctl fail2ban list` การยืนยัน token ต้องให้ server เชื่อมต่อ HTTPS ออกไปยัง Provider ที่เลือก
+การยืนยัน token ต้องให้ server เชื่อมต่อ HTTPS ออกไปยัง Provider ที่เลือก

@@ -174,7 +174,7 @@
     };
 
     const loadSnapshot = async () => {
-        try { const result = await apiGet('snapshot'); renderStatus(result.data || {}); const events = await apiGet('events'); renderEvents(events.data || []); await loadFail2ban(); }
+        try { const result = await apiGet('snapshot'); renderStatus(result.data || {}); const events = await apiGet('events'); renderEvents(events.data || []); }
         catch (error) { showToast(error.message, true); }
     };
 
@@ -308,60 +308,13 @@
     });
     syncCronSchedule();
 
-    const renderFail2ban = (data) => {
-        setText('[data-fail2ban-total]', data.total_banned ?? 0);
-        const root = qs('[data-fail2ban-jails]');
-        if (!root) return;
-        root.replaceChildren();
-        const jails = Array.isArray(data.jails) ? data.jails : [];
-        if (!jails.length) {
-            const row = document.createElement('tr'); const cell = document.createElement('td');
-            cell.colSpan = 4; cell.className = 'empty-state'; cell.textContent = data.service === 'running' ? 'No blocked IPs.' : `Fail2Ban is ${data.service || 'unavailable'}.`;
-            row.appendChild(cell); root.appendChild(row); return;
-        }
-        jails.forEach((jail) => {
-            const row = document.createElement('tr');
-            const name = document.createElement('td'); name.textContent = jail.name || '—';
-            const count = document.createElement('td'); count.textContent = String(jail.currently_banned ?? 0);
-            const ips = document.createElement('td'); ips.className = 'ip-list';
-            const actions = document.createElement('td');
-            const bannedIps = Array.isArray(jail.banned_ips) ? jail.banned_ips : [];
-            if (!bannedIps.length) {
-                ips.textContent = 'None';
-            } else {
-                bannedIps.forEach((ip) => {
-                    const item = document.createElement('span'); item.className = 'ip-entry';
-                    const label = document.createElement('code'); label.textContent = ip;
-                    const button = document.createElement('button'); button.type = 'button'; button.className = 'button button-secondary button-small'; button.textContent = 'Unblock'; button.dataset.fail2banUnban = ip;
-                    item.append(label); ips.appendChild(item); actions.appendChild(button);
-                });
-            }
-            row.append(name, count, ips, actions); root.appendChild(row);
-        });
-    };
-
-    const loadFail2ban = async () => {
-        try { const result = await apiGet('fail2ban'); renderFail2ban(result.data || {}); }
-        catch (error) { console.error('[Dashboard API] Fail2Ban error', error); }
-    };
-
-    qs('[data-fail2ban-jails]')?.addEventListener('click', async (event) => {
-        const button = event.target.closest('button[data-fail2ban-unban]');
-        if (!button) return;
-        const ip = button.dataset.fail2banUnban || '';
-        if (!(await showConfirmModal(`Unblock ${ip} from all Fail2Ban jails?`))) return;
-        button.disabled = true;
-        try { await apiPost('fail2ban-unban', ip, true); showToast(`Unblocked ${ip}.`); await loadFail2ban(); }
-        catch (error) { showToast(error.message, true); button.disabled = false; }
-    });
-
     const loadLogs = async () => {
         try { const type = qs('[data-log-type]')?.value || 'nginx-error'; const result = await apiGet('logs', { type, limit: '100', search: '' }); setText('[data-logs]', (result.data || []).join('\n') || 'No log entries.'); }
         catch (error) { showToast(error.message, true); }
     };
 
     qsa('[data-section]').forEach((link) => link.addEventListener('click', (event) => {
-        event.preventDefault(); const section = link.dataset.section; qsa('[data-section]').forEach((item) => item.classList.toggle('is-active', item === link)); qsa('[data-panel]').forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === section)); qs('#page-title').textContent = section === 'dashboard' ? 'Dashboard Overview' : section.replace('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); qs('#sidebar')?.classList.remove('open'); if (section === 'websites') loadWebsites(); if (section === 'fail2ban') loadFail2ban(); if (section === 'cron') loadCron();
+        event.preventDefault(); const section = link.dataset.section; qsa('[data-section]').forEach((item) => item.classList.toggle('is-active', item === link)); qsa('[data-panel]').forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === section)); qs('#page-title').textContent = section === 'dashboard' ? 'Dashboard Overview' : section.replace('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); qs('#sidebar')?.classList.remove('open'); if (section === 'websites') loadWebsites(); if (section === 'cron') loadCron();
     }));
     const botProvider = qs('[data-bot-provider]');
     const botSiteKey = qs('[data-bot-site-key]');

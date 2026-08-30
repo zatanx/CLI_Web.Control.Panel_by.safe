@@ -78,7 +78,7 @@ backup_create_all() {
   archive="$BACKUP_DIR/serverctl-all-$(backup_timestamp).tar.gz"; stage=$(mktemp -d "$BACKUP_DIR/.stage.XXXXXX")
   mkdir -p "$stage/websites" "$stage/databases" "$stage/config"
   cp -a -- "$STATE_DIR" "$stage/config/state"
-  for file in "$(root_path /etc/serverctl)" "$(root_path /etc/nginx)" "$(root_path /etc/php)" "$(root_path /etc/fail2ban)" "$(root_path /etc/ufw)"; do [[ -e "$file" ]] && cp -a -- "$file" "$stage/config/"; done
+  for file in "$(root_path /etc/serverctl)" "$(root_path /etc/nginx)" "$(root_path /etc/php)" "$(root_path /etc/ufw)"; do [[ -e "$file" ]] && cp -a -- "$file" "$stage/config/"; done
   if [[ -d "$(root_path /etc/cron.d)" ]]; then
     mkdir -p "$stage/config/cron.d"
     shopt -s nullglob

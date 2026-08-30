@@ -16,9 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         if ($resource === 'websites') {
             dashboard_json_response(dashboard_json_command('websites'));
         }
-        if ($resource === 'fail2ban') {
-            dashboard_json_response(dashboard_json_command('fail2ban'));
-        }
         if ($resource === 'cron') {
             dashboard_json_response(dashboard_json_command('cron'));
         }
@@ -73,7 +70,7 @@ $description = (string) ($_POST['description'] ?? '');
 $enabled = (string) ($_POST['enabled'] ?? 'yes');
 $requires_confirmation = in_array($action, [
     'nginx-restart', 'firewall-reload', 'backup-all', 'update-check',
-    'fail2ban-unban', 'backup-restore', 'website-remove', 'database-remove', 'bot-protection-set',
+    'backup-restore', 'website-remove', 'database-remove', 'bot-protection-set',
     'cron-add-website', 'cron-edit-website', 'cron-enable', 'cron-disable', 'cron-run', 'cron-delete',
 ], true);
 if ($requires_confirmation && (string) ($_POST['confirmed'] ?? '') !== '1') {

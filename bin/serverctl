@@ -63,15 +63,13 @@ Commands:
   backup restore ARCHIVE [--yes]
   backup delete ARCHIVE [--yes]
   backup sync
-  logs <nginx|php|mariadb|fail2ban|firewall|system|serverctl> [--lines N] [--follow] [--search TEXT]
+  logs <nginx|php|mariadb|firewall|system|serverctl> [--lines N] [--follow] [--search TEXT]
   security status|scan|ports|permissions|php-scan|suid|services|updates|audit|ssh [status|harden]
   firewall status|list|add|remove|reload
-  fail2ban status|list|ban IP|unban IP
   update serverctl|check|security|all
   update history|health|reboot-status
   version                              Show serverctl version
   dashboard status|snapshot|websites
-  dashboard fail2ban
   dashboard cron|cron-status|cron-logs
   dashboard bot-protection status|set PROVIDER SITE_KEY --secret SECRET
   dashboard logs TYPE [LINES] [SEARCH]
@@ -126,7 +124,6 @@ main() {
     logs) cmd_logs "$@" ;;
     security) cmd_security "$@" ;;
     firewall) cmd_firewall "$@" ;;
-    fail2ban) cmd_fail2ban "$@" ;;
     update) cmd_update "$@" ;;
     dashboard) cmd_dashboard "$@" ;;
     cron) cmd_cron "$@" ;;

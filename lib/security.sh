@@ -27,7 +27,6 @@ check_firewall() { ufw status | grep -q 'Status: active'; }
 check_apparmor() { aa-status --enabled; }
 check_ssh_root() { sshd -T | grep -qi '^permitrootlogin no$'; }
 check_ssh_keys() { sshd -T | grep -qi '^pubkeyauthentication yes$'; }
-check_fail2ban() { systemctl is-active --quiet fail2ban; }
 check_php_hardening() { grep -Rqs '^display_errors[[:space:]]*=[[:space:]]*Off' "$(root_path /etc/php)"/*/fpm/conf.d/99-serverctl-security.ini; }
 check_mariadb_local() {
   local endpoint found=0
@@ -53,11 +52,10 @@ check_permissions() { [[ -z "$(find "$WEB_ROOT" -xdev -perm -0002 -print -quit 2
 security_status() {
   SECURITY_SCORE=0 SECURITY_CRITICAL=0
   printf 'SECURITY STATUS\n===============\n'
-  security_check Firewall 20 check_firewall
+  security_check Firewall 25 check_firewall
   security_check AppArmor 15 check_apparmor
   security_check 'SSH Root Login' 10 check_ssh_root
-  security_check 'SSH Authentication' 5 check_ssh_keys
-  security_check Fail2Ban 10 check_fail2ban
+  security_check 'SSH Authentication' 10 check_ssh_keys
   security_check 'PHP hardening' 10 check_php_hardening
   security_check 'MariaDB localhost' 10 check_mariadb_local
   security_check SSL 10 check_ssl
@@ -128,7 +126,7 @@ security_services() {
   local service
   while IFS= read -r service; do
     case "$service" in
-      apparmor.service|cron.service|dbus.service|fail2ban.service|getty@.service|mariadb.service|networkd-dispatcher.service|nginx.service|php*-fpm.service|rsyslog.service|ssh.service|sshd.service|systemd-*.service|unattended-upgrades.service|ufw.service) printf 'EXPECTED %s\n' "$service" ;;
+      apparmor.service|cron.service|dbus.service|getty@.service|mariadb.service|networkd-dispatcher.service|nginx.service|php*-fpm.service|rsyslog.service|ssh.service|sshd.service|systemd-*.service|unattended-upgrades.service|ufw.service) printf 'EXPECTED %s\n' "$service" ;;
       *) warn "Review enabled service: $service" ;;
     esac
   done < <(systemctl list-unit-files --type=service --state=enabled --no-legend 2>/dev/null | awk '{print $1}')

@@ -20,7 +20,7 @@ status_once() {
   printf '\n%-18s %s\n' SERVICE STATUS
   print_service nginx nginx
   local version; for version in $ALLOWED_PHP_VERSIONS; do [[ -e "/etc/php/$version/fpm" ]] && print_service "PHP $version FPM" "php$version-fpm"; done
-  print_service MariaDB mariadb; print_service Fail2Ban fail2ban
+  print_service MariaDB mariadb
   if ufw status 2>/dev/null | grep -q 'Status: active'; then printf '%-18s %s\n' UFW RUNNING; else printf '%-18s %s\n' UFW STOPPED; fi
   if aa-status --enabled >/dev/null 2>&1; then printf '%-18s %s\n' AppArmor ENABLED; else printf '%-18s %s\n' AppArmor DISABLED; fi
 }
@@ -53,7 +53,6 @@ cmd_health() {
   printf 'Server health\n'
   health_service nginx nginx "$failures"; failures=$HEALTH_FAILURES
   health_service MariaDB mariadb "$failures"; failures=$HEALTH_FAILURES
-  health_service Fail2Ban fail2ban "$failures"; failures=$HEALTH_FAILURES
   for version in $ALLOWED_PHP_VERSIONS; do
     if [[ -d "/etc/php/$version/fpm" ]]; then health_service "PHP $version FPM" "php$version-fpm" "$failures"; failures=$HEALTH_FAILURES; fi
   done
@@ -86,7 +85,6 @@ cmd_logs() {
     nginx) file=/var/log/nginx/error.log ;;
     php) file=$(find /var/log/php* -maxdepth 1 -type f -name '*fpm*.log' 2>/dev/null | head -1) ;;
     mariadb) file=/var/log/mysql/error.log ;;
-    fail2ban) file=/var/log/fail2ban.log ;;
     firewall) file=/var/log/ufw.log ;;
     system) file=/var/log/syslog ;;
     serverctl) file=$SERVERCTL_LOG_FILE ;;
@@ -130,49 +128,6 @@ firewall_remove() {
   (($# == 1)) || die "firewall remove accepts one rule number." "$EXIT_INVALID_ARGUMENT"
   ufw status numbered; confirm "Delete UFW rule $number?" || die "Cancelled." "$EXIT_GENERAL"
   backup_ufw; run_cmd ufw --force delete "$number"; ok 'Firewall rule removed.'
-}
-
-cmd_fail2ban() {
-  local sub=${1:-}; shift || true
-  case "$sub" in
-    status) fail2ban-client status ;;
-    list) fail2ban_list ;;
-    ban|unban) fail2ban_ip "$sub" "$@" ;;
-    *) die "Usage: serverctl fail2ban <status|list|ban|unban>" "$EXIT_INVALID_ARGUMENT" ;;
-  esac
-}
-
-fail2ban_list() {
-  local jail
-  while IFS= read -r jail; do
-    [[ -n "$jail" ]] || continue
-    fail2ban-client status "$jail"
-  done < <(fail2ban_jails)
-}
-
-fail2ban_jails() {
-  fail2ban-client status 2>/dev/null \
-    | sed -n 's/.*Jail list:[[:space:]]*//p' \
-    | tr ',' '\n' \
-    | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-    | sed '/^$/d'
-}
-
-fail2ban_ip() {
-  require_root
-  local action=$1 ip=${2:-} jail; validate_ip "$ip" || die "Invalid IP address." "$EXIT_VALIDATION"
-  (($# == 2)) || die "Fail2Ban ban/unban accepts one IP address." "$EXIT_INVALID_ARGUMENT"
-  confirm "$action $ip in Fail2Ban?" || die "Cancelled." "$EXIT_GENERAL"
-  if [[ "$action" == ban ]]; then
-    run_cmd fail2ban-client set sshd banip "$ip"
-  else
-    # Web requests can be banned by nginx-http-auth or nginx-limit-req.
-    while IFS= read -r jail; do
-      [[ -n "$jail" ]] || continue
-      fail2ban-client set "$jail" unbanip "$ip" >/dev/null 2>&1 || true
-    done < <(fail2ban_jails)
-  fi
-  ok "Fail2Ban $action completed for $ip."
 }
 
 cmd_update() {
@@ -274,14 +229,6 @@ serverctl_update_source() {
   run_cmd install -d -m 0755 "$(root_path /opt/serverctl/bin)" "$(root_path /opt/serverctl/lib)"
   run_cmd install -m 0755 "$source_dir/bin/serverctl" "$(root_path /opt/serverctl/bin/serverctl)"
   run_cmd install -m 0644 "$source_dir"/lib/*.sh "$(root_path /opt/serverctl/lib)/"
-  if [[ -f "$source_dir/etc/fail2ban/jail.d/serverctl.local" ]]; then
-    run_cmd install -d -m 0755 "$(root_path /etc/fail2ban/jail.d)"
-    run_cmd install -m 0644 "$source_dir/etc/fail2ban/jail.d/serverctl.local" "$(root_path /etc/fail2ban/jail.d/serverctl.local)"
-  fi
-  if [[ -f "$source_dir/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" ]]; then
-    run_cmd install -d -m 0755 "$(root_path /etc/fail2ban/filter.d)"
-    run_cmd install -m 0644 "$source_dir/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" "$(root_path /etc/fail2ban/filter.d/serverctl-dashboard-login.conf)"
-  fi
   if [[ -f "$source_dir/etc/tmpfiles.d/serverctl.conf" ]]; then
     tmpfiles_file="$(root_path /etc/tmpfiles.d/serverctl.conf)"
     run_cmd install -d -m 0755 "$(root_path /etc/tmpfiles.d)"
@@ -315,10 +262,6 @@ serverctl_update_source() {
     run_cmd chown www-data:www-data "$dashboard_state/audit.log"
     run_cmd chmod 0640 "$dashboard_state/audit.log"
   fi
-  if service_is_active fail2ban; then
-    run_cmd fail2ban-client reload
-  fi
-
   if [[ "$old_revision" == "$new_revision" ]]; then
     ok "serverctl is already up to date (${new_revision:0:12})."
   else

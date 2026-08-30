@@ -6,7 +6,7 @@ export PATH
 CDPATH=; export CDPATH
 
 readonly INSTALL_LOG=/var/log/serverctl/install.log
-readonly SERVERCTL_VERSION=1.1.13 SERVERCTL_RELEASE_DATE=2026-08-30
+readonly SERVERCTL_VERSION=1.1.14 SERVERCTL_RELEASE_DATE=2026-08-30
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 PROFILE=minimal
 DEFAULT_PHP=8.3
@@ -104,7 +104,7 @@ preflight() {
 install_packages() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update
-  apt-get install -y --no-install-recommends ca-certificates curl gnupg nginx mariadb-server certbot ufw fail2ban apparmor apparmor-utils unattended-upgrades logrotate openssl rsync acl psmisc
+  apt-get install -y --no-install-recommends ca-certificates curl gnupg nginx mariadb-server certbot ufw apparmor apparmor-utils unattended-upgrades logrotate openssl rsync acl psmisc
   if [[ "$ENABLE_PHP_PPA" == 1 ]]; then
     apt-get install -y --no-install-recommends software-properties-common
     add-apt-repository -y ppa:ondrej/php
@@ -142,9 +142,7 @@ install_serverctl() {
   install -m 0640 "$SCRIPT_DIR/config/serverctl.conf" /etc/serverctl/serverctl.conf
   sed -i "s/^DEFAULT_PHP_VERSION=.*/DEFAULT_PHP_VERSION=$DEFAULT_PHP/" /etc/serverctl/serverctl.conf
   timedatectl set-timezone Asia/Bangkok
-  install -d -m 0755 /etc/fail2ban/jail.d /etc/fail2ban/filter.d /etc/logrotate.d /etc/systemd/system /etc/tmpfiles.d /etc/letsencrypt/renewal-hooks/deploy /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled
-  install -m 0644 "$SCRIPT_DIR/etc/fail2ban/jail.d/serverctl.local" /etc/fail2ban/jail.d/serverctl.local
-  install -m 0644 "$SCRIPT_DIR/etc/fail2ban/filter.d/serverctl-dashboard-login.conf" /etc/fail2ban/filter.d/serverctl-dashboard-login.conf
+  install -d -m 0755 /etc/logrotate.d /etc/systemd/system /etc/tmpfiles.d /etc/letsencrypt/renewal-hooks/deploy /etc/nginx/conf.d /etc/nginx/sites-available /etc/nginx/sites-enabled
   install -m 0644 "$SCRIPT_DIR/etc/tmpfiles.d/serverctl.conf" /etc/tmpfiles.d/serverctl.conf
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl" /etc/logrotate.d/serverctl
   install -m 0644 "$SCRIPT_DIR/etc/logrotate.d/serverctl-web" /etc/logrotate.d/serverctl-web
@@ -244,14 +242,14 @@ configure_admin_group() {
 
 enable_services() {
   local version
-  systemctl enable --now nginx mariadb fail2ban apparmor
+  systemctl enable --now nginx mariadb apparmor
   for version in "${PHP_VERSIONS[@]}"; do systemctl enable --now "php$version-fpm"; done
   dpkg-reconfigure -f noninteractive unattended-upgrades
   systemctl daemon-reload
   systemctl enable --now certbot.timer serverctl-backup.timer serverctl-security-scan.timer
   nginx -t
   for version in "${PHP_VERSIONS[@]}"; do "php-fpm$version" -t; done
-  systemctl is-active --quiet nginx mariadb fail2ban apparmor
+  systemctl is-active --quiet nginx mariadb apparmor
   aa-status --enabled
   ok 'Services enabled and configuration validation passed.'
 }
@@ -285,7 +283,7 @@ EOF
 preflight
 cat <<EOF
 serverctl will install the $PROFILE profile with PHP $DEFAULT_PHP.
-It will configure Nginx, MariaDB, UFW, Fail2Ban, AppArmor and automatic updates.
+It will configure Nginx, MariaDB, UFW, AppArmor and automatic updates.
 EOF
 confirm 'Continue installation?' || exit 1
 install_packages

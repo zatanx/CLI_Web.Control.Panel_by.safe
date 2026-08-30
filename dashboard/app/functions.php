@@ -5,12 +5,12 @@ require_once __DIR__ . '/csrf.php';
 
 function dashboard_command(string $operation, array $arguments = [], bool $assume_yes = false): array
 {
-    $read_operations = ['snapshot', 'websites', 'fail2ban', 'cron', 'cron-status'];
+    $read_operations = ['snapshot', 'websites', 'cron', 'cron-status'];
     if (!in_array($operation, $read_operations, true) && $operation !== 'logs' && $operation !== 'cron-logs' && $operation !== 'action') {
         throw new RuntimeException('Dashboard operation is not allowed.');
     }
     if ($operation === 'logs') {
-        if (count($arguments) !== 3 || !in_array($arguments[0], ['nginx-access', 'nginx-error', 'system', 'security', 'audit'], true)) {
+        if (count($arguments) !== 3 || !in_array($arguments[0], ['nginx-access', 'nginx-error', 'system', 'audit'], true)) {
             throw new RuntimeException('Invalid log request.');
         }
         if (!in_array((string) $arguments[1], ['50', '100', '500'], true)) {
@@ -33,7 +33,6 @@ function dashboard_command(string $operation, array $arguments = [], bool $assum
             'firewall-reload' => 0,
             'backup-all' => 0,
             'update-check' => 0,
-            'fail2ban-unban' => 1,
             'backup-restore' => 1,
             'website-remove' => 1,
             'database-remove' => 1,
@@ -47,9 +46,6 @@ function dashboard_command(string $operation, array $arguments = [], bool $assum
         ];
         if (!array_key_exists($action, $allowed) || count($arguments) - 1 !== $allowed[$action]) {
             throw new RuntimeException('Invalid dashboard action.');
-        }
-        if ($action === 'fail2ban-unban' && !filter_var($arguments[1], FILTER_VALIDATE_IP)) {
-            throw new RuntimeException('Invalid IP address.');
         }
         if ($action === 'website-remove' && !preg_match('/^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i', $arguments[1])) {
             throw new RuntimeException('Invalid domain.');
