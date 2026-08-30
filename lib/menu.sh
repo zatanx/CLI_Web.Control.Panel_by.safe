@@ -276,7 +276,7 @@ menu_cron_schedule() {
 }
 
 menu_cron_add() {
-  local type user schedule command description website script enabled
+  local type input_mode user schedule command description website script enabled discard_output
   printf '\n========================================\n             ADD CRON JOB\n========================================\n\n  1. System Cron\n     Run an allowed command as a selected Linux user.\n\n  2. Website Cron\n     Run a PHP script from a registered website.\n\n  0. Cancel\n\n========================================\nSelect type [0-2]: '
   read -r type
   case "$type" in
@@ -284,22 +284,47 @@ menu_cron_add() {
     0) return 0 ;;
     *) warn 'Invalid Cron type. Select 1, 2, or 0.'; menu_pause; return 0 ;;
   esac
-  if ! schedule=$(menu_cron_schedule); then
-    menu_pause
-    return 0
+  printf '\n1. Guided Entry\n   Select a schedule and enter each field separately.\n\n2. Paste Full Cron Line\n   Example: */2 * * * * /usr/bin/php /var/www/example.com/public/cron.php >/dev/null 2>&1\n\n0. Cancel\n\nSelect input mode [0-2]: '
+  read -r input_mode
+  case "$input_mode" in
+    1)
+      if ! schedule=$(menu_cron_schedule); then menu_pause; return 0; fi
+      command=''; discard_output=no
+      ;;
+    2)
+      printf '\nPaste full Cron line: '; read -r command
+      if ! cron_parse_full_line "$command"; then
+        warn 'Invalid full Cron line. Use five schedule fields followed by an allowed absolute command.'
+        menu_pause
+        return 0
+      fi
+      schedule=$CRON_PARSED_SCHEDULE; command=$CRON_PARSED_COMMAND; discard_output=$CRON_PARSED_DISCARD_OUTPUT
+      ;;
+    0) return 0 ;;
+    *) warn 'Invalid input mode. Select 1, 2, or 0.'; menu_pause; return 0 ;;
+  esac
+  printf '\nParsed schedule: %s\n' "$schedule"
+  if [[ -n "$command" ]]; then
+    printf 'Parsed command : %s\n' "$command"
+    [[ "$discard_output" == yes ]] && printf '%s\n' 'Output handling: discard stdout and stderr (/dev/null)'
   fi
-  printf '\nSelected schedule: %s\n\n' "$schedule"
+  printf '\n'
   if [[ "$type" == 2 ]]; then
     printf '%s\n' 'Registered websites:'
     website_list
     printf '\nWebsite domain (example: example.com): '; read -r website
-    printf 'PHP script filename in the website document root (example: cron.php): '; read -r script
+    if [[ "$input_mode" == 1 ]]; then printf 'PHP script filename in the website document root (example: cron.php): '; read -r script; fi
     printf 'Description (optional): '; read -r description
     printf 'Enable immediately? [Y/n]: '; read -r enabled; [[ "$enabled" =~ ^[Nn] ]] && enabled=--disabled || enabled=--enabled
-    menu_exec cron website add "$website" --schedule "$schedule" --script "$script" --description "$description" "$enabled"
+    if [[ "$input_mode" == 1 ]]; then
+      menu_exec cron website add "$website" --schedule "$schedule" --script "$script" --description "$description" "$enabled"
+    else
+      user=$(record_get "$(website_record_path "$website")" USER || true)
+      menu_exec cron add --user "$user" --schedule "$schedule" --command "$command" --description "$description" "$enabled" --type website --website "$website"
+    fi
   else
     printf 'Linux user [root]: '; read -r user; user=${user:-root}
-    printf 'Command (absolute executable and arguments; no quotes or redirects): '; read -r command
+    if [[ "$input_mode" == 1 ]]; then printf 'Command (absolute executable and arguments; no quotes or redirects): '; read -r command; fi
     printf 'Description (optional): '; read -r description
     printf 'Enable immediately? [Y/n]: '; read -r enabled; [[ "$enabled" =~ ^[Nn] ]] && enabled=--disabled || enabled=--enabled
     menu_exec cron add --user "$user" --schedule "$schedule" --command "$command" --description "$description" "$enabled"

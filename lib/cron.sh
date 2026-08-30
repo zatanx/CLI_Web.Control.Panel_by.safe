@@ -7,6 +7,11 @@
 CRON_OUTPUT_LIMIT_BYTES=${CRON_OUTPUT_LIMIT_BYTES:-1048576}
 CRON_TIMEOUT_SECONDS=${CRON_TIMEOUT_SECONDS:-300}
 CRON_EXECUTABLE=${CRON_EXECUTABLE:-$(root_path /usr/local/libexec/serverctl-cron-run)}
+CRON_COMMAND_PARTS=()
+CRON_COMMAND_DISCARD_OUTPUT=no
+CRON_PARSED_SCHEDULE=''
+CRON_PARSED_COMMAND=''
+CRON_PARSED_DISCARD_OUTPUT=no
 
 cron_jobs_dir() { printf '%s/cron/jobs' "$STATE_DIR"; }
 cron_record_path() { printf '%s/%s.conf' "$(cron_jobs_dir)" "$1"; }
@@ -49,6 +54,7 @@ cron_validate_field() {
 
 cron_validate_expression() {
   local expression=${1:-} field
+  local -a fields
   [[ -n "$expression" && "$expression" != *$'\n'* && "$expression" != *$'\r'* ]] || return 1
   read -r -a fields <<< "$expression"
   ((${#fields[@]} == 5)) || return 1
@@ -81,21 +87,67 @@ cron_allowed_executable() {
   return 1
 }
 
+cron_split_command() {
+  local command=${1:-} count
+  CRON_COMMAND_PARTS=()
+  CRON_COMMAND_DISCARD_OUTPUT=no
+  read -r -a CRON_COMMAND_PARTS <<< "$command"
+  count=${#CRON_COMMAND_PARTS[@]}
+  if ((count >= 2)) && [[ "${CRON_COMMAND_PARTS[count-2]}" == '>/dev/null' && "${CRON_COMMAND_PARTS[count-1]}" == '2>&1' ]]; then
+    unset 'CRON_COMMAND_PARTS[count-2]' 'CRON_COMMAND_PARTS[count-1]'
+    CRON_COMMAND_PARTS=("${CRON_COMMAND_PARTS[@]}")
+    CRON_COMMAND_DISCARD_OUTPUT=yes
+  elif ((count >= 3)) && [[ "${CRON_COMMAND_PARTS[count-3]}" == '>' && "${CRON_COMMAND_PARTS[count-2]}" == '/dev/null' && "${CRON_COMMAND_PARTS[count-1]}" == '2>&1' ]]; then
+    unset 'CRON_COMMAND_PARTS[count-3]' 'CRON_COMMAND_PARTS[count-2]' 'CRON_COMMAND_PARTS[count-1]'
+    CRON_COMMAND_PARTS=("${CRON_COMMAND_PARTS[@]}")
+    CRON_COMMAND_DISCARD_OUTPUT=yes
+  fi
+  ((${#CRON_COMMAND_PARTS[@]} > 0))
+}
+
 cron_validate_command() {
-  local command=${1:-} executable token
+  local command=${1:-} executable token normalized
   [[ -n "$command" && ${#command} -le 4096 ]] || return 1
   [[ "$command" != *$'\n'* && "$command" != *$'\r'* && "$command" != *'..'* && "$command" != *'//' ]] || return 1
+  cron_split_command "$command" || return 1
+  normalized=${CRON_COMMAND_PARTS[*]}
   # This character allow-list intentionally excludes shell syntax, quoting,
-  # expansion, globbing and redirection.  Commands are later executed as an
-  # argv array, never through a shell interpreter.
-  [[ "$command" =~ ^[-A-Za-z0-9_./:@%+=,?~]+([[:space:]]+[-A-Za-z0-9_./:@%+=,?~]+)*$ ]] || return 1
-  read -r -a command_parts <<< "$command"
-  ((${#command_parts[@]} > 0)) || return 1
-  executable=${command_parts[0]}
+  # expansion and globbing. A trailing /dev/null redirect is parsed as data,
+  # never executed by a shell.
+  [[ "$normalized" =~ ^[-A-Za-z0-9_./:@%+=,?~]+([[:space:]]+[-A-Za-z0-9_./:@%+=,?~]+)*$ ]] || return 1
+  executable=${CRON_COMMAND_PARTS[0]}
   [[ "$executable" == /* ]] || return 1
   cron_allowed_executable "$executable" || return 1
   if [[ "$SERVERCTL_TEST_MODE" != 1 && ! -x "$executable" ]]; then return 1; fi
-  for token in "${command_parts[@]}"; do [[ "$token" != *'..'* ]] || return 1; done
+  for token in "${CRON_COMMAND_PARTS[@]}"; do [[ "$token" != *'..'* ]] || return 1; done
+}
+
+cron_parse_full_line() {
+  local line=${1:-} schedule command token first last
+  local -a fields command_parts normalized_parts
+  CRON_PARSED_SCHEDULE=''
+  CRON_PARSED_COMMAND=''
+  CRON_PARSED_DISCARD_OUTPUT=no
+  [[ -n "$line" && ${#line} -le 8192 && "$line" != *$'\n'* && "$line" != *$'\r'* ]] || return 1
+  read -r -a fields <<< "$line"
+  ((${#fields[@]} >= 6)) || return 1
+  schedule="${fields[0]} ${fields[1]} ${fields[2]} ${fields[3]} ${fields[4]}"
+  cron_validate_expression "$schedule" || return 1
+  command_parts=("${fields[@]:5}")
+  for token in "${command_parts[@]}"; do
+    first=${token:0:1}; last=${token: -1}
+    if [[ "$first" == "'" || "$first" == '"' ]]; then
+      [[ ${#token} -ge 2 && "$last" == "$first" ]] || return 1
+      token=${token:1:${#token}-2}
+    fi
+    [[ -n "$token" && "$token" != *"'"* && "$token" != *'"'* ]] || return 1
+    normalized_parts+=("$token")
+  done
+  command=${normalized_parts[*]}
+  cron_validate_command "$command" || return 1
+  CRON_PARSED_SCHEDULE=$schedule
+  CRON_PARSED_COMMAND=$command
+  CRON_PARSED_DISCARD_OUTPUT=$CRON_COMMAND_DISCARD_OUTPUT
 }
 
 cron_validate_type() { [[ "${1:-}" == system || "${1:-}" == website ]]; }
@@ -340,9 +392,10 @@ cron_limit_output() {
 }
 
 cron_execute_command() {
-  local user=$1 command=$2 stdout_file=$3 stderr_file=$4 rc=0 home=/tmp
+  local user=$1 command=$2 stdout_file=$3 stderr_file=$4 rc=0 home=/tmp discard_output
   local -a parts runner
-  read -r -a parts <<< "$command"
+  cron_split_command "$command" || return "$EXIT_VALIDATION"
+  parts=("${CRON_COMMAND_PARTS[@]}"); discard_output=$CRON_COMMAND_DISCARD_OUTPUT
   if [[ "$user" == root ]]; then home=/root
   elif [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then home=$(getent passwd "$user" | cut -d: -f6); home=${home:-/}
   fi
@@ -352,12 +405,13 @@ cron_execute_command() {
     runner=(/usr/sbin/runuser -u "$user" -- "${runner[@]}")
   fi
   if [[ "$SERVERCTL_TEST_MODE" == 1 ]]; then
-    printf '[serverctl test mode] command execution skipped.\n' > "$stdout_file"
+    if [[ "$discard_output" == yes ]]; then : > "$stdout_file"; else printf '[serverctl test mode] command execution skipped.\n' > "$stdout_file"; fi
     : > "$stderr_file"
     printf '0'
     return 0
   fi
   if "${runner[@]}" "${parts[@]}" >"$stdout_file" 2>"$stderr_file"; then rc=0; else rc=$?; fi
+  if [[ "$discard_output" == yes ]]; then : > "$stdout_file"; : > "$stderr_file"; fi
   printf '%s' "$rc"
 }
 
@@ -591,13 +645,16 @@ cron_build_website_command() {
 
 cron_validate_website_command() {
   local command=$1 website=$2 record docroot expected user
+  local -a command_parts
   validate_site_name "$website" || return 1
   record=$(website_record_path "$website"); [[ -f "$record" ]] || return 1
   docroot=$(record_get "$record" DOCUMENT_ROOT || printf '%s/%s/public' "$WEB_ROOT" "$website")
   expected="$docroot/"
-  read -r -a command_parts <<< "$command"
-  ((${#command_parts[@]} == 2)) || return 1
+  cron_split_command "$command" || return 1
+  command_parts=("${CRON_COMMAND_PARTS[@]}")
+  ((${#command_parts[@]} >= 2)) || return 1
   [[ "${command_parts[1]}" == "$expected"* && "${command_parts[1]}" != *'..'* ]] || return 1
+  [[ "$SERVERCTL_TEST_MODE" == 1 || -f "${command_parts[1]}" ]] || return 1
   user=$(record_get "$record" USER || printf www-data)
   [[ "$user" != root ]] || return 1
 }
