@@ -9,6 +9,7 @@ Documentation version: v1.1.16 (2026-08-31)
 - One Linux user and one PHP-FPM pool per website
 - Validated arguments and allow-listed system commands
 - Backup, validate, apply, health-check, and rollback configuration flow
+- Keep scheduled backups disabled by default; administrators create backups manually unless they explicitly enable the timer
 - Confirmation for destructive actions; `--yes` for explicit automation
 - Audit every CLI action without logging passwords, tokens, or private keys
 - Install only required packages; expose only SSH, HTTP, and HTTPS
@@ -57,6 +58,7 @@ Read the installation guide in [How to install](How%20to%20install.md).
 - ใช้ Linux user และ PHP-FPM pool แยกสำหรับแต่ละเว็บไซต์
 - ตรวจสอบ argument และอนุญาตเฉพาะคำสั่งระบบที่กำหนดไว้
 - สำรองข้อมูล ตรวจสอบ ใช้งาน ตรวจสุขภาพ และ rollback configuration ตามลำดับ
+- ปิดการสำรองข้อมูลตามเวลาเป็นค่าเริ่มต้น ผู้ดูแลสร้าง Backup เองจนกว่าจะเปิด timer อย่างชัดเจน
 - ยืนยันก่อนการทำงานที่ลบหรือทำลายข้อมูล และใช้ `--yes` สำหรับ automation ที่ระบุชัดเจน
 - บันทึก audit ของ CLI โดยไม่เก็บ password, token หรือ private key
 - ติดตั้งเฉพาะแพ็กเกจที่จำเป็น และเปิดเผยเฉพาะ SSH, HTTP และ HTTPS

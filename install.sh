@@ -246,7 +246,8 @@ enable_services() {
   for version in "${PHP_VERSIONS[@]}"; do systemctl enable --now "php$version-fpm"; done
   dpkg-reconfigure -f noninteractive unattended-upgrades
   systemctl daemon-reload
-  systemctl enable --now certbot.timer serverctl-backup.timer serverctl-security-scan.timer
+  systemctl enable --now certbot.timer serverctl-security-scan.timer
+  systemctl disable --now serverctl-backup.timer
   nginx -t
   for version in "${PHP_VERSIONS[@]}"; do "php-fpm$version" -t; done
   systemctl is-active --quiet nginx mariadb cron apparmor
@@ -266,6 +267,7 @@ Default PHP  : $DEFAULT_PHP
 PHP versions : ${PHP_VERSIONS[*]}
 Management   : SSH + sudo serverctl
 Web panel    : Dashboard source installed (not enabled)
+Auto backup  : Disabled (manual backups only)
 Firewall     : $(ufw status | sed -n 's/Status: //p')
 Install log  : $INSTALL_LOG
 

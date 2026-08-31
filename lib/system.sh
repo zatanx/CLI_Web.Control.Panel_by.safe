@@ -248,6 +248,9 @@ serverctl_update_source() {
       units_updated=1
     done
     ((units_updated == 0)) || run_cmd systemctl daemon-reload
+    if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
+      run_cmd systemctl disable --now serverctl-backup.timer
+    fi
   fi
   if [[ -f "$source_dir/etc/letsencrypt/renewal-hooks/deploy/serverctl-reload-nginx" ]]; then
     run_cmd install -d -m 0755 "$(root_path /etc/letsencrypt/renewal-hooks/deploy)"
