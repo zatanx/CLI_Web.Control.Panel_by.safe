@@ -246,13 +246,15 @@ menu_php() {
 
 menu_backup() {
   local choice value
-  printf '1. Backup Website\n2. Backup Database\n3. Backup Everything\n4. List Backups\n5. Back\nSelect: '; read -r choice
+  printf '1. Backup Website\n2. Backup Database\n3. Backup Everything\n4. List Backups\n5. Delete Backup\n\n0. Back\nSelect: '; read -r choice
   case "$choice" in
     1) printf 'Domain: '; read -r value; menu_exec backup create --website "$value" ;;
     2) printf 'Database: '; read -r value; menu_exec backup create --database "$value" ;;
     3) menu_exec backup create --all ;;
     4) backup_list ;;
-    *) return ;;
+    5) backup_list; printf '\nBackup name to delete (blank to return): '; read -r value; [[ -n "$value" ]] || return; menu_exec backup delete "$value" ;;
+    0) return ;;
+    *) warn 'Invalid option.'; return ;;
   esac
   menu_pause
 }
