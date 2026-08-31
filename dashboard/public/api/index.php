@@ -16,6 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         if ($resource === 'websites') {
             dashboard_json_response(dashboard_json_command('websites'));
         }
+        if ($resource === 'backups') {
+            dashboard_json_response(dashboard_json_command('backups'));
+        }
         if ($resource === 'cron') {
             dashboard_json_response(dashboard_json_command('cron'));
         }
@@ -69,7 +72,7 @@ $script = (string) ($_POST['script'] ?? '');
 $description = (string) ($_POST['description'] ?? '');
 $enabled = (string) ($_POST['enabled'] ?? 'yes');
 $requires_confirmation = in_array($action, [
-    'nginx-restart', 'firewall-reload', 'backup-all', 'update-check',
+    'nginx-restart', 'firewall-reload', 'backup-all', 'backup-delete', 'update-check',
     'backup-restore', 'website-remove', 'database-remove', 'bot-protection-set',
     'cron-add-website', 'cron-edit-website', 'cron-enable', 'cron-disable', 'cron-run', 'cron-delete',
 ], true);

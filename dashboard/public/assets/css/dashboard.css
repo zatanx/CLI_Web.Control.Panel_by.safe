@@ -120,6 +120,7 @@ input[type="checkbox"] { display: inline-block; width: auto; margin: 0 7px 0 0; 
 .cron-form-panel { min-width: 0; }
 .cron-details-panel { margin-top: 16px; }
 .cron-actions { white-space: normal; min-width: 210px; }
+.backup-list-panel { margin-top: 16px; }
 input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
 .log-viewer { min-height: 270px; max-height: 520px; overflow: auto; margin: 0; padding: 16px; border-radius: 8px; color: #dce7f8; background: #111d31; font: 11px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
 .alert-list { margin-bottom: 16px; }

@@ -202,6 +202,38 @@
         } catch (error) { showToast(error.message, true); }
     };
 
+    const loadBackups = async () => {
+        const root = qs('[data-backups]');
+        if (!root) return;
+        try {
+            const result = await apiGet('backups');
+            const backups = Array.isArray(result.data) ? result.data : [];
+            root.replaceChildren();
+            if (!backups.length) { root.innerHTML = '<tr><td colspan="4" class="empty-state">No backups found.</td></tr>'; return; }
+            backups.sort((left, right) => String(right.created).localeCompare(String(left.created)));
+            backups.forEach((backup) => {
+                const row = document.createElement('tr');
+                [backup.name, formatBytes(backup.size), backup.created].forEach((value) => { const cell = document.createElement('td'); cell.textContent = escapeText(value); row.appendChild(cell); });
+                const actions = document.createElement('td');
+                const button = document.createElement('button');
+                button.type = 'button'; button.className = 'button button-danger button-small'; button.textContent = 'Delete'; button.dataset.backupDelete = backup.name;
+                actions.appendChild(button); row.appendChild(actions); root.appendChild(row);
+            });
+        } catch (error) { root.innerHTML = '<tr><td colspan="4" class="empty-state">Unable to load backups.</td></tr>'; showToast(error.message, true); }
+    };
+
+    qs('[data-backup-refresh]')?.addEventListener('click', loadBackups);
+    qs('[data-backups]')?.addEventListener('click', async (event) => {
+        const button = event.target.closest('button[data-backup-delete]');
+        if (!button) return;
+        const name = button.dataset.backupDelete || '';
+        if (!(await showConfirmModal(`Permanently delete backup ${name}?`))) return;
+        button.disabled = true;
+        try { await apiPost('backup-delete', name, true); showToast('Backup deleted.'); await loadBackups(); }
+        catch (error) { showToast(error.message, true); }
+        finally { button.disabled = false; }
+    });
+
     let cronJobs = [];
     const cronForm = qs('[data-cron-form]');
     const cronSchedule = qs('[data-cron-schedule]');
@@ -322,7 +354,7 @@
     };
 
     qsa('[data-section]').forEach((link) => link.addEventListener('click', (event) => {
-        event.preventDefault(); const section = link.dataset.section; qsa('[data-section]').forEach((item) => item.classList.toggle('is-active', item === link)); qsa('[data-panel]').forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === section)); qs('#page-title').textContent = section === 'dashboard' ? 'Dashboard Overview' : section.replace('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); qs('#sidebar')?.classList.remove('open'); if (section === 'websites') loadWebsites(); if (section === 'cron') loadCron();
+        event.preventDefault(); const section = link.dataset.section; qsa('[data-section]').forEach((item) => item.classList.toggle('is-active', item === link)); qsa('[data-panel]').forEach((panel) => panel.classList.toggle('is-visible', panel.dataset.panel === section)); qs('#page-title').textContent = section === 'dashboard' ? 'Dashboard Overview' : section.replace('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); qs('#sidebar')?.classList.remove('open'); if (section === 'websites') loadWebsites(); if (section === 'backup') loadBackups(); if (section === 'cron') loadCron();
     }));
     const botProvider = qs('[data-bot-provider]');
     const botSiteKey = qs('[data-bot-site-key]');
@@ -356,7 +388,7 @@
         const message = button.dataset.confirm || 'Continue with this administrative action?';
         if (!(await showConfirmModal(message))) return;
         button.disabled = true;
-        try { await apiPost(button.dataset.action, '', true); showToast('Action completed.'); await loadSnapshot(); }
+        try { await apiPost(button.dataset.action, '', true); showToast('Action completed.'); await loadSnapshot(); if (button.dataset.action === 'backup-all') await loadBackups(); }
         catch (error) { showToast(error.message, true); }
         finally { button.disabled = false; }
     }));

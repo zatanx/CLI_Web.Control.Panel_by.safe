@@ -213,6 +213,25 @@ dashboard_websites() {
   printf ']}\n'
 }
 
+dashboard_backups() {
+  require_root
+  local file name size created first=1
+  printf '{"status":"success","data":['
+  shopt -s nullglob
+  for file in "$BACKUP_DIR"/serverctl-*.tar.gz "$BACKUP_DIR"/serverctl-*.tar.gz.gpg; do
+    name=$(basename "$file")
+    validate_backup_name "$name" || continue
+    size=$(stat -c %s -- "$file" 2>/dev/null || printf 0)
+    created=$(date -r "$file" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || printf unknown)
+    ((first)) || printf ','
+    first=0
+    printf '{"name":%s,"size":%s,"created":%s}' \
+      "$(dashboard_json_string "$name")" "$(dashboard_json_number "$size")" "$(dashboard_json_string "$created")"
+  done
+  shopt -u nullglob
+  printf ']}\n'
+}
+
 dashboard_cron() {
   require_root
   printf '{"status":"success","data":%s}\n' "$(cron_jobs_json)"
@@ -264,6 +283,7 @@ dashboard_action() {
     firewall-reload) (($# == 0)) || die 'firewall-reload accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; cmd_firewall reload ;;
     backup-all) (($# == 0)) || die 'backup-all accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; backup_create_all ;;
     backup-restore) (($# == 1)) || die 'backup-restore requires one archive name.' "$EXIT_INVALID_ARGUMENT"; backup_restore "$1" ;;
+    backup-delete) (($# == 1)) || die 'backup-delete requires one archive name.' "$EXIT_INVALID_ARGUMENT"; backup_delete "$1" ;;
     website-remove) (($# == 1)) || die 'website-remove requires one domain.' "$EXIT_INVALID_ARGUMENT"; website_remove "$1" ;;
     database-remove) (($# == 1)) || die 'database-remove requires one database name.' "$EXIT_INVALID_ARGUMENT"; database_remove "$1" ;;
     update-check) (($# == 0)) || die 'update-check accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_check ;;
@@ -442,6 +462,7 @@ cmd_dashboard() {
     status) (($# == 0)) || die 'dashboard status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_status ;;
     snapshot) (($# == 0)) || die 'dashboard snapshot accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_snapshot ;;
     websites) (($# == 0)) || die 'dashboard websites accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_websites ;;
+    backups) (($# == 0)) || die 'dashboard backups accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_backups ;;
     cron) (($# == 0)) || die 'dashboard cron accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron ;;
     cron-status) (($# == 0)) || die 'dashboard cron-status accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron_status ;;
     cron-logs) (($# == 2)) || die 'dashboard cron-logs requires ID and line limit.' "$EXIT_INVALID_ARGUMENT"; dashboard_cron_logs "$@" ;;
@@ -450,6 +471,6 @@ cmd_dashboard() {
     bot-protection) dashboard_bot_protection "$@" ;;
     install) dashboard_install "$@" ;;
     uninstall) dashboard_uninstall "$@" ;;
-    *) die 'Usage: serverctl dashboard <status|snapshot|websites|cron|cron-status|cron-logs|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
+    *) die 'Usage: serverctl dashboard <status|snapshot|websites|backups|cron|cron-status|cron-logs|bot-protection|logs|action|install|uninstall>' "$EXIT_INVALID_ARGUMENT" ;;
   esac
 }

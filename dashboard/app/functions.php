@@ -5,7 +5,7 @@ require_once __DIR__ . '/csrf.php';
 
 function dashboard_command(string $operation, array $arguments = [], bool $assume_yes = false): array
 {
-    $read_operations = ['snapshot', 'websites', 'cron', 'cron-status'];
+    $read_operations = ['snapshot', 'websites', 'backups', 'cron', 'cron-status'];
     if (!in_array($operation, $read_operations, true) && $operation !== 'logs' && $operation !== 'cron-logs' && $operation !== 'action') {
         throw new RuntimeException('Dashboard operation is not allowed.');
     }
@@ -32,6 +32,7 @@ function dashboard_command(string $operation, array $arguments = [], bool $assum
             'nginx-restart' => 0,
             'firewall-reload' => 0,
             'backup-all' => 0,
+            'backup-delete' => 1,
             'update-check' => 0,
             'backup-restore' => 1,
             'website-remove' => 1,
@@ -53,7 +54,7 @@ function dashboard_command(string $operation, array $arguments = [], bool $assum
         if ($action === 'database-remove' && !preg_match('/^[A-Za-z][A-Za-z0-9_]{0,47}$/', $arguments[1])) {
             throw new RuntimeException('Invalid database name.');
         }
-        if ($action === 'backup-restore' && !preg_match('/^serverctl-[A-Za-z0-9_.-]+\.tar\.gz(?:\.gpg)?$/', $arguments[1])) {
+        if (in_array($action, ['backup-restore', 'backup-delete'], true) && !preg_match('/^serverctl-[A-Za-z0-9_.-]+\.tar\.gz(?:\.gpg)?$/', $arguments[1])) {
             throw new RuntimeException('Invalid backup name.');
         }
         if ($action === 'bot-protection-set') {

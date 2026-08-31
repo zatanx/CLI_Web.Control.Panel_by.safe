@@ -69,7 +69,7 @@ Commands:
   update serverctl|check|security|all
   update history|health|reboot-status
   version                              Show serverctl version
-  dashboard status|snapshot|websites
+  dashboard status|snapshot|websites|backups
   dashboard cron|cron-status|cron-logs
   dashboard bot-protection status|set PROVIDER SITE_KEY --secret SECRET
   dashboard logs TYPE [LINES] [SEARCH]
