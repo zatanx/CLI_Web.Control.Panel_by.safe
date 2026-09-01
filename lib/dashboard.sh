@@ -287,7 +287,7 @@ dashboard_action() {
     website-remove) (($# == 1)) || die 'website-remove requires one domain.' "$EXIT_INVALID_ARGUMENT"; website_remove "$1" ;;
     database-remove) (($# == 1)) || die 'database-remove requires one database name.' "$EXIT_INVALID_ARGUMENT"; database_remove "$1" ;;
     update-check) (($# == 0)) || die 'update-check accepts no arguments.' "$EXIT_INVALID_ARGUMENT"; update_check ;;
-    bot-protection-set) (($# == 4 && "${3:-}" == --secret)) || die 'bot-protection-set requires PROVIDER SITE_KEY --secret SECRET.' "$EXIT_INVALID_ARGUMENT"; dashboard_bot_protection_set "${1:-}" "${2:-}" "${4:-}" ;;
+    bot-protection-set) [[ "$#" -eq 4 && "${3:-}" == --secret ]] || die 'bot-protection-set requires PROVIDER SITE_KEY --secret SECRET.' "$EXIT_INVALID_ARGUMENT"; dashboard_bot_protection_set "${1:-}" "${2:-}" "${4:-}" ;;
     cron-add-website) (($# == 5)) || die 'cron-add-website requires WEBSITE SCHEDULE SCRIPT DESCRIPTION ENABLED.' "$EXIT_INVALID_ARGUMENT"; add_cron_website_job "$1" "$2" "$3" "$4" "$5" ;;
     cron-edit-website) (($# == 6)) || die 'cron-edit-website requires ID WEBSITE SCHEDULE SCRIPT DESCRIPTION ENABLED.' "$EXIT_INVALID_ARGUMENT"; update_cron_website_job "$1" "$2" "$3" "$4" "$5" "$6" ;;
     cron-enable) (($# == 1)) || die 'cron-enable requires one ID.' "$EXIT_INVALID_ARGUMENT"; enable_cron_job "$1" ;;
