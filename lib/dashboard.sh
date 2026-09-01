@@ -395,6 +395,7 @@ dashboard_install() {
   fi
   [[ "$dashboard_user" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || die 'Invalid dashboard username.' "$EXIT_VALIDATION"
   [[ -d "$DASHBOARD_INSTALL_ROOT/public" ]] || die 'Dashboard files are not installed.' "$EXIT_SYSTEM"
+  run_cmd chmod o+x "$DASHBOARD_INSTALL_ROOT"
   if dashboard_is_local_name "$domain"; then
     local_mode=yes; dashboard_ssl=no; dashboard_port=8088; cert_root=''
   else

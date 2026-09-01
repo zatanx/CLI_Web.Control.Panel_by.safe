@@ -159,6 +159,7 @@ install_serverctl() {
   chown root:www-data /opt/serverctl/dashboard/app /opt/serverctl/dashboard/views
   find /opt/serverctl/dashboard/app /opt/serverctl/dashboard/views -type f -exec chown root:www-data {} \;
   chmod 0750 /opt/serverctl/dashboard/app /opt/serverctl/dashboard/views
+  chmod o+x /opt/serverctl/dashboard
   touch /var/lib/serverctl/dashboard/audit.log
   chown www-data:www-data /var/lib/serverctl/dashboard
   chown www-data:www-data /var/lib/serverctl/dashboard/audit.log

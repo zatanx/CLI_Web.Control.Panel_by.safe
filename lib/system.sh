@@ -273,6 +273,7 @@ serverctl_update_source() {
     run_cmd install -d -m 0755 -o root -g root "$dashboard_dir"
     run_cmd rsync -a --delete -- "$source_dir/dashboard/" "$dashboard_dir/"
     run_cmd chown -R root:root "$dashboard_dir"
+    run_cmd chmod o+x "$dashboard_dir"
     run_cmd find "$dashboard_dir" -type d -path "$dashboard_dir/public*" -exec chmod 0755 {} +
     run_cmd find "$dashboard_dir" -type f -path "$dashboard_dir/public/*" -exec chmod 0644 {} +
     for file in "$dashboard_dir/app" "$dashboard_dir/views"; do
