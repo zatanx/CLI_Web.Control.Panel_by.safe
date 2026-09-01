@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input id="username" name="username" type="text" required maxlength="64" autocomplete="username" autofocus>
         <label for="password">Password</label>
         <input id="password" name="password" type="password" required autocomplete="current-password">
-        <?php if ($bot_enabled && $bot_provider === 'turnstile'): ?><div class="cf-turnstile" data-sitekey="<?= h($bot_site_key) ?>" data-theme="light"></div><?php endif; ?>
+        <?php if ($bot_enabled && $bot_provider === 'turnstile'): ?><div class="cf-turnstile" data-sitekey="<?= h($bot_site_key) ?>" data-theme="light" data-size="flexible"></div><?php endif; ?>
         <?php if ($bot_enabled): ?><div class="alert alert-danger login-bot-error" data-bot-error hidden role="alert"></div><?php endif; ?>
         <button class="button button-primary button-wide" type="submit">Log in</button>
     </form>
