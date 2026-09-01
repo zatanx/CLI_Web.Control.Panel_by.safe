@@ -271,8 +271,8 @@ dashboard_logs() {
     *) die 'Unknown dashboard log type.' "$EXIT_INVALID_ARGUMENT" ;;
   esac
   [[ -f "$file" ]] || die 'Requested log file is unavailable.' "$EXIT_SYSTEM"
-  if [[ -n "$search" ]]; then grep -F -- "$search" "$file" | tail -n "$lines" || true
-  else tail -n "$lines" -- "$file"; fi
+  if [[ -n "$search" ]]; then grep -F -- "$search" "$file" | tail -n "$lines" | tac || true
+  else tail -n "$lines" -- "$file" | tac; fi
 }
 
 dashboard_action() {
