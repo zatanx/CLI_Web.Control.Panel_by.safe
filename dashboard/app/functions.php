@@ -10,7 +10,7 @@ function dashboard_command(string $operation, array $arguments = [], bool $assum
         throw new RuntimeException('Dashboard operation is not allowed.');
     }
     if ($operation === 'logs') {
-        if (count($arguments) !== 3 || !in_array($arguments[0], ['nginx-access', 'nginx-error', 'system', 'audit'], true)) {
+        if (count($arguments) !== 3 || !in_array($arguments[0], ['nginx-access', 'nginx-error', 'system', 'audit', 'login'], true)) {
             throw new RuntimeException('Invalid log request.');
         }
         if (!in_array((string) $arguments[1], ['50', '100', '500'], true)) {

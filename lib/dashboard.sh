@@ -267,6 +267,7 @@ dashboard_logs() {
     nginx-error) file=$(root_path /var/log/nginx/error.log) ;;
     system) file=$(root_path /var/log/syslog) ;;
     audit) file=$AUDIT_LOG ;;
+    login) file="$DASHBOARD_STATE_DIR/audit.log"; search=$'\tLOGIN\t' ;;
     *) die 'Unknown dashboard log type.' "$EXIT_INVALID_ARGUMENT" ;;
   esac
   [[ -f "$file" ]] || die 'Requested log file is unavailable.' "$EXIT_SYSTEM"
