@@ -153,6 +153,10 @@ install_serverctl() {
   rm -f /etc/nginx/sites-enabled/default
   ln -sfn /etc/nginx/sites-available/serverctl-default.conf /etc/nginx/sites-enabled/serverctl-default.conf
   install -m 0644 "$SCRIPT_DIR"/etc/systemd/system/*.service "$SCRIPT_DIR"/etc/systemd/system/*.timer /etc/systemd/system/
+  for version in "${PHP_VERSIONS[@]}"; do
+    install -d -m 0755 "/etc/systemd/system/php${version}-fpm.service.d"
+    install -m 0644 "$SCRIPT_DIR/etc/systemd/system/serverctl-php-fpm-dashboard.conf" "/etc/systemd/system/php${version}-fpm.service.d/serverctl-dashboard.conf"
+  done
   install -m 0755 "$SCRIPT_DIR/etc/letsencrypt/renewal-hooks/deploy/serverctl-reload-nginx" /etc/letsencrypt/renewal-hooks/deploy/serverctl-reload-nginx
   touch /var/log/serverctl/serverctl.log /var/log/serverctl/audit.log
   chown -R root:root /opt/serverctl /etc/serverctl /var/lib/serverctl /var/backups/serverctl
@@ -243,10 +247,10 @@ configure_admin_group() {
 
 enable_services() {
   local version
+  systemctl daemon-reload
   systemctl enable --now nginx mariadb cron apparmor
   for version in "${PHP_VERSIONS[@]}"; do systemctl enable --now "php$version-fpm"; done
   dpkg-reconfigure -f noninteractive unattended-upgrades
-  systemctl daemon-reload
   systemctl enable --now certbot.timer serverctl-security-scan.timer
   systemctl disable --now serverctl-backup.timer
   nginx -t

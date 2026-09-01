@@ -205,7 +205,7 @@ serverctl_update_source() {
   require_root
   has_command git || die 'Git is required to update serverctl from GitHub.' "$EXIT_SYSTEM"
 
-  local source_dir remote branch old_revision new_revision remote_revision file dashboard_dir dashboard_state sudoers_file tmpfiles_file units_updated=0
+  local source_dir remote branch old_revision new_revision remote_revision file dashboard_dir dashboard_state sudoers_file tmpfiles_file php_version dropin_dir units_updated=0 dashboard_dropin_updated=0
   source_dir=$(serverctl_prepare_source)
   [[ -f "$source_dir/bin/serverctl" && -d "$source_dir/lib" ]] || die "Invalid serverctl source directory: $source_dir" "$EXIT_VALIDATION"
 
@@ -250,6 +250,25 @@ serverctl_update_source() {
     ((units_updated == 0)) || run_cmd systemctl daemon-reload
     if [[ "$SERVERCTL_TEST_MODE" != 1 ]]; then
       run_cmd systemctl disable --now serverctl-backup.timer
+    fi
+  fi
+  if [[ -f "$source_dir/etc/systemd/system/serverctl-php-fpm-dashboard.conf" ]]; then
+    for php_version in $ALLOWED_PHP_VERSIONS; do
+      [[ -d "$(root_path /etc/php/$php_version/fpm)" ]] || continue
+      dropin_dir="$(root_path /etc/systemd/system/php${php_version}-fpm.service.d)"
+      run_cmd install -d -m 0755 "$dropin_dir"
+      if [[ ! -f "$dropin_dir/serverctl-dashboard.conf" ]] || ! cmp -s "$source_dir/etc/systemd/system/serverctl-php-fpm-dashboard.conf" "$dropin_dir/serverctl-dashboard.conf"; then
+        run_cmd install -m 0644 "$source_dir/etc/systemd/system/serverctl-php-fpm-dashboard.conf" "$dropin_dir/serverctl-dashboard.conf"
+        dashboard_dropin_updated=1
+      fi
+    done
+    if ((dashboard_dropin_updated)); then
+      run_cmd systemctl daemon-reload
+      for php_version in $ALLOWED_PHP_VERSIONS; do
+        if [[ "$SERVERCTL_TEST_MODE" == 1 ]] || service_is_active "php$php_version-fpm"; then
+          run_cmd systemctl restart "php$php_version-fpm"
+        fi
+      done
     fi
   fi
   if [[ -f "$source_dir/etc/letsencrypt/renewal-hooks/deploy/serverctl-reload-nginx" ]]; then
